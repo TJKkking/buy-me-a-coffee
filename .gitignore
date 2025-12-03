@@ -1,0 +1,10 @@
+.env
+.venv
+
+node_modules
+
+*.pyc
+__pycache__/
+*.db
+
+backend/python
