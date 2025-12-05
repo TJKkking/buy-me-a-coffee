@@ -1,0 +1,316 @@
+name: xixi-coffee-api
+description: 希希咖啡店 API
+
+spec:
+  schema:
+    type: OpenAPI
+    detail: 
+      
+      openapi: 3.1.0
+      servers:
+        - url: ''
+      info:
+        title: 希希咖啡店后端服务
+        description: 希希咖啡店的 REST API 服务，提供商品和订单管理
+        version: 1.0.0
+      paths:
+        '/':
+          get:
+            summary: Root
+            description: 健康检查
+            operationId: root__get
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+        '/health':
+          get:
+            summary: Health
+            description: 健康检查
+            operationId: health_health_get
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+        '/api/coffee/products':
+          get:
+            tags:
+              - 希希咖啡
+            summary: Get Products
+            description: 获取商品列表
+            operationId: get_products_api_coffee_products_get
+            parameters:
+              - name: category
+                in: query
+                required: false
+                schema:
+                  anyOf:
+                    - type: string
+                    - type: 'null'
+                  title: Category
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+        '/api/coffee/products/{product_id}':
+          get:
+            tags:
+              - 希希咖啡
+            summary: Get Product
+            description: 获取商品详情
+            operationId: get_product_api_coffee_products__product_id__get
+            parameters:
+              - name: product_id
+                in: path
+                required: true
+                schema:
+                  type: integer
+                  title: Product Id
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+        '/api/coffee/orders':
+          post:
+            tags:
+              - 希希咖啡
+            summary: Create Order
+            description: 创建订单
+            operationId: create_order_api_coffee_orders_post
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    '$ref': '#/components/schemas/CreateOrderRequest'
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+          get:
+            tags:
+              - 希希咖啡
+            summary: Get Orders
+            description: 获取订单列表
+            operationId: get_orders_api_coffee_orders_get
+            parameters:
+              - name: status
+                in: query
+                required: false
+                schema:
+                  anyOf:
+                    - type: string
+                    - type: 'null'
+                  title: Status
+              - name: limit
+                in: query
+                required: false
+                schema:
+                  type: integer
+                  default: 50
+                  title: Limit
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+        '/api/coffee/orders/{order_id}':
+          get:
+            tags:
+              - 希希咖啡
+            summary: Get Order
+            description: 获取订单详情
+            operationId: get_order_api_coffee_orders__order_id__get
+            parameters:
+              - name: order_id
+                in: path
+                required: true
+                schema:
+                  type: integer
+                  title: Order Id
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+        '/api/coffee/orders/{order_id}/status':
+          put:
+            tags:
+              - 希希咖啡
+            summary: Update Order Status
+            description: 更新订单状态
+            operationId: update_order_status_api_coffee_orders__order_id__status_put
+            parameters:
+              - name: order_id
+                in: path
+                required: true
+                schema:
+                  type: integer
+                  title: Order Id
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    '$ref': '#/components/schemas/UpdateOrderStatusRequest'
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+              '422':
+                description: Validation Error
+                content:
+                  application/json:
+                    schema:
+                      '$ref': '#/components/schemas/HTTPValidationError'
+        '/api/coffee/categories':
+          get:
+            tags:
+              - 希希咖啡
+            summary: Get Categories
+            description: 获取商品分类
+            operationId: get_categories_api_coffee_categories_get
+            responses:
+              '200':
+                description: Successful Response
+                content:
+                  application/json:
+                    schema: {}
+      components:
+        schemas:
+          CreateOrderRequest:
+            properties:
+              items:
+                items:
+                  '$ref': '#/components/schemas/OrderItem'
+                type: array
+                title: Items
+              customer_name:
+                type: string
+                title: Customer Name
+              customer_phone:
+                type: string
+                title: Customer Phone
+              customer_address:
+                anyOf:
+                  - type: string
+                  - type: 'null'
+                title: Customer Address
+              notes:
+                anyOf:
+                  - type: string
+                  - type: 'null'
+                title: Notes
+            type: object
+            required:
+              - items
+              - customer_name
+              - customer_phone
+            title: CreateOrderRequest
+            description: 创建订单请求
+          HTTPValidationError:
+            properties:
+              detail:
+                items:
+                  '$ref': '#/components/schemas/ValidationError'
+                type: array
+                title: Detail
+            type: object
+            title: HTTPValidationError
+          OrderItem:
+            properties:
+              product_id:
+                type: integer
+                title: Product Id
+              name:
+                type: string
+                title: Name
+              price:
+                type: number
+                title: Price
+              quantity:
+                type: integer
+                title: Quantity
+            type: object
+            required:
+              - product_id
+              - name
+              - price
+              - quantity
+            title: OrderItem
+            description: 订单项
+          UpdateOrderStatusRequest:
+            properties:
+              status:
+                type: string
+                title: Status
+            type: object
+            required:
+              - status
+            title: UpdateOrderStatusRequest
+            description: 更新订单状态请求
+          ValidationError:
+            properties:
+              loc:
+                items:
+                  anyOf:
+                    - type: string
+                    - type: integer
+                type: array
+                title: Location
+              msg:
+                type: string
+                title: Message
+              type:
+                type: string
+                title: Error Type
+            type: object
+            required:
+              - loc
+              - msg
+              - type
+            title: ValidationError
