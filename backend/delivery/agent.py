@@ -3,18 +3,20 @@
 
 工具通过 HTTP 接口调用后端服务
 """
+
 from google.adk import Agent
 import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from config import DEFAULT_LLM
+from config import DEFAULT_LLM, DEVELIVERY_TOOLSET
 
 # 导入 HTTP 工具（同步函数，直接使用）
 from . import tools
 
 
 # ==================== 工具函数（直接使用 HTTP 工具）====================
+
 
 def tool_create_delivery(
     order_id: int,
@@ -25,7 +27,7 @@ def tool_create_delivery(
 ) -> dict:
     """
     创建配送订单，将咖啡配送到指定地址
-    
+
     调用 API: POST /api/delivery/deliveries
 
     Args:
@@ -46,7 +48,7 @@ def tool_create_delivery(
 def tool_query_delivery(delivery_id: int) -> dict:
     """
     根据配送单号查询配送状态
-    
+
     调用 API: GET /api/delivery/deliveries/{delivery_id}
 
     Args:
@@ -61,7 +63,7 @@ def tool_query_delivery(delivery_id: int) -> dict:
 def tool_query_delivery_by_order(order_id: int) -> dict:
     """
     根据咖啡订单号查询配送信息
-    
+
     调用 API: GET /api/delivery/deliveries/order/{order_id}
 
     Args:
@@ -76,7 +78,7 @@ def tool_query_delivery_by_order(order_id: int) -> dict:
 def tool_update_delivery_status(delivery_id: int, status: str) -> dict:
     """
     更新配送状态
-    
+
     调用 API: PUT /api/delivery/deliveries/{delivery_id}/status
 
     Args:
@@ -92,7 +94,7 @@ def tool_update_delivery_status(delivery_id: int, status: str) -> dict:
 def tool_get_active_deliveries() -> dict:
     """
     获取当前进行中的配送订单
-    
+
     调用 API: GET /api/delivery/deliveries
 
     Returns:
@@ -104,7 +106,7 @@ def tool_get_active_deliveries() -> dict:
 def tool_get_delivery_status_options() -> dict:
     """
     获取配送状态的所有选项和说明
-    
+
     调用 API: GET /api/delivery/status-options
 
     Returns:
@@ -146,12 +148,16 @@ delivery_agent = Agent(
 
 **交互风格**：专业高效，使用中文，清晰告知配送进度
 """,
-    tools=[
-        tool_create_delivery,
-        tool_query_delivery,
-        tool_query_delivery_by_order,
-        tool_update_delivery_status,
-        tool_get_active_deliveries,
-        tool_get_delivery_status_options,
-    ],
+    tools=(
+        DEVELIVERY_TOOLSET
+        if len(DEVELIVERY_TOOLSET)
+        else [
+            tool_create_delivery,
+            tool_query_delivery,
+            tool_query_delivery_by_order,
+            tool_update_delivery_status,
+            tool_get_active_deliveries,
+            tool_get_delivery_status_options,
+        ]
+    ),
 )

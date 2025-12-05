@@ -30,11 +30,15 @@ def get_env_with_default(default_value: str, *env_names: str) -> str:
 
 
 # AgentRun 集成能力
+COFFEE_TOOLSET_NAME = get_env_with_default("", "COFFEE_TOOLSET_NAME")
+DELIVERY_TOOLSET_NAME = get_env_with_default("", "DELIVERY_TOOLSET_NAME")
 from agentrun.integration.google_adk import model, toolset
 
 DEFAULT_LLM = model(
     get_env_with_default("sdk-test-model-service", "AGENTRUN_MODEL_NAME")
 )
+COFFEE_TOOLSET = toolset(COFFEE_TOOLSET_NAME) if COFFEE_TOOLSET_NAME else []
+DEVELIVERY_TOOLSET = toolset(DELIVERY_TOOLSET_NAME) if DELIVERY_TOOLSET_NAME else []
 
 # 项目根目录
 BASE_DIR = Path(__file__).parent.parent

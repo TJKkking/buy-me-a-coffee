@@ -4,12 +4,13 @@
 
 工具通过 HTTP 接口调用后端服务
 """
+
 from google.adk import Agent
 import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from config import DEFAULT_LLM
+from config import COFFEE_TOOLSET, DEFAULT_LLM
 
 # 导入 HTTP 工具（同步函数，直接使用）
 from . import tools
@@ -17,10 +18,11 @@ from . import tools
 
 # ==================== 工具函数（直接使用 HTTP 工具）====================
 
+
 def tool_get_menu(category: str = None) -> dict:
     """
     获取希希咖啡店的菜单
-    
+
     调用 API: GET /api/coffee/products
 
     Args:
@@ -35,7 +37,7 @@ def tool_get_menu(category: str = None) -> dict:
 def tool_search_product(keyword: str) -> dict:
     """
     搜索咖啡店商品
-    
+
     调用 API: GET /api/coffee/products
 
     Args:
@@ -56,7 +58,7 @@ def tool_create_order(
 ) -> dict:
     """
     创建咖啡订单
-    
+
     调用 API: POST /api/coffee/orders
 
     Args:
@@ -77,7 +79,7 @@ def tool_create_order(
 def tool_query_order(order_id: int) -> dict:
     """
     查询订单详情
-    
+
     调用 API: GET /api/coffee/orders/{order_id}
 
     Args:
@@ -92,7 +94,7 @@ def tool_query_order(order_id: int) -> dict:
 def tool_get_recent_orders(limit: int = 5) -> dict:
     """
     获取最近的订单列表
-    
+
     调用 API: GET /api/coffee/orders?limit={limit}
 
     Args:
@@ -107,7 +109,7 @@ def tool_get_recent_orders(limit: int = 5) -> dict:
 def tool_update_order_status(order_id: int, status: str) -> dict:
     """
     更新订单状态
-    
+
     调用 API: PUT /api/coffee/orders/{order_id}/status
 
     Args:
@@ -142,7 +144,11 @@ order_agent = Agent(
 
 **交互风格**：热情友好，使用中文，适当推荐搭配
 """,
-    tools=[tool_get_menu, tool_search_product, tool_create_order],
+    tools=(
+        COFFEE_TOOLSET
+        if len(COFFEE_TOOLSET)
+        else [tool_get_menu, tool_search_product, tool_create_order]
+    ),
 )
 
 
@@ -157,8 +163,8 @@ query_agent = Agent(
 2. 查看最近的订单列表 - 使用 tool_get_recent_orders
 3. 更新订单状态（仅限店员操作）- 使用 tool_update_order_status
 
-**重要**：当用户请求查询订单时，直接调用相应的工具获取数据，不要询问用户更多信息。
-- 如果用户说"查看订单"、"最近的订单"等，直接调用 tool_get_recent_orders
+**重要**：当用户请求查询订单时，直接调用相应的工具获取数据，不需要询问用户更多信息。
+- 如果用户未提供订单号，直接调用 tool_get_recent_orders
 - 如果用户提供了订单号，直接调用 tool_query_order
 
 **订单状态说明**：
@@ -169,7 +175,7 @@ query_agent = Agent(
 - completed：已完成
 - cancelled：已取消
 
-**交互风格**：清晰准确，使用中文，主动调用工具获取数据
+**交互风格**：x清晰准确，使用中文，主动调用工具获取数据
 """,
     tools=[tool_query_order, tool_get_recent_orders, tool_update_order_status],
 )

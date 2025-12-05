@@ -83,6 +83,11 @@ resources:
     component: fc3
     extend:
       name: tpl
+    actions:
+      complete-deploy:
+        - plugin: cap-tool-plugin
+          args: # 插件的参数
+            schema: ${file(./coffee.yaml)}
     props:
       functionName: ${vars.name}_coffee_api
       description: 'Buy Me A Coffee - 希希咖啡店 API'
@@ -105,8 +110,9 @@ resources:
           - -m
           - coffee.a2a
       environmentVariables:
-        COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
+        # COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
         COFFEE_A2A_URL: 'http://${this.props.functionName}.fcv3.${config("AccountID")}.${this.props.region}.fc.devsapp.net'
+        COFFEE_TOOLSET_NAME: 'xixi-coffee-api'
 
       customDomain:
         protocol: 'HTTP'
@@ -119,6 +125,11 @@ resources:
     component: fc3
     extend:
       name: tpl
+    actions:
+      complete-deploy:
+        - plugin: cap-tool-plugin
+          args: # 插件的参数
+            schema: ${file(./delivery.yaml)}
     props:
       functionName: ${vars.name}_delivery_api
       description: 'Buy Me A Coffee - 送了么配送 API'
@@ -141,8 +152,9 @@ resources:
           - -m
           - delivery.a2a
       environmentVariables:
-        DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
+        # DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
         DELIVERY_A2A_URL: 'http://${this.props.functionName}.fcv3.${config("AccountID")}.${this.props.region}.fc.devsapp.net'
+        DELIVERY_TOOLSET_NAME: delivery-api
 
       customDomain:
         protocol: 'HTTP'
