@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+.venv
+venv
+node_modules
+dist
+build
+.git
+data
+frontend/dist
+*.db
+*.sqlite3
+/.cache
+.DS_Store
+src
+Makefile
+

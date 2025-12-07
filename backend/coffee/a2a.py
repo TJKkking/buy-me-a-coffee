@@ -5,7 +5,7 @@ from shared.server import build_fastapi_app
 
 
 async def lifespan(app):
-    a2a_app = await build_a2a_app(coffee_agent, COFFEE_A2A_URL.replace("_", "-"))
+    a2a_app = await build_a2a_app(coffee_agent, COFFEE_A2A_URL)
 
     # 注册 A2A 路由
     a2a_app.add_routes_to_app(

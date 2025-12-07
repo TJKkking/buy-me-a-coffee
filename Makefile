@@ -1,3 +1,12 @@
+ACCESS ?= ohyee
+DOCKER_IMAGE ?= "registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-${shell date -u +'%y%m%d-%H%M%S'}" 
+LATEST_IMAGE ?= ${shell docker images | awk '/cn-hangzhou/ && /buy-me-a-coffee/ { printf "%s:%s\n", $$1, $$2 }'  | sed -n 1p}
+FRONTEND_SOURCES ?= $(shell find frontend -type f -not -path "*/node_modules/*" -not -path "*/dist/*")
+
+
+.PHONY: help
+help: ## 帮助文件
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-40s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: setup-nodejs
 setup-nodejs:
@@ -8,49 +17,102 @@ setup-python:
 	uv pip install -r backend/requirements.txt
 
 .PHONY: setup
-setup: setup-nodejs setup-python
+setup: setup-nodejs setup-python ## 初始化开发环境
+
+
+frontend/dist/index.cjs: $(FRONTEND_SOURCES)
+	cd frontend && \
+	npm run build && \
+	cp index.js dist/index.cjs
 
 
 .PHONY: web
-web:
-	cd frontend && \
-	npm run build && \
-	cp index.js dist/index.js && \
-	cd dist && \
+web: frontend/dist/index.cjs ## 调试 - 启动 web 服务器
+	@cd frontend/dist && \
 	ENDPOINT=http://localhost:8000 \
-	bun index.js
+	node index.cjs
 
 .PHONY: gateway-agent
-gateway-agent:
+gateway-agent: ## 调试 - 启动主 Agent
 	A2A_URLS=http://localhost:8003,http://localhost:8004 \
 	COFFEE_API_URL=http://localhost:8001 \
 	DELIVERY_API_URL=http://localhost:8002 \
 	uv run -m backend.gateway.main
 
 .PHONY: coffee-agent
-coffee-agent:
-	COFFEE_API_URL=http://localhost:8001 \
+coffee-agent: ## 调试 - 启动 Coffee Agent
+	COFFEE_TOOLSET_NAME=xixi-coffee-api \
 	uv run -m backend.coffee.a2a
 
 .PHONY: delivery-agent
-delivery-agent:
-	DELIVERY_API_URL=http://localhost:8002 \
+delivery-agent: ## 调试 - 启动 Delivery Agent
+	DELIVERY_TOOLSET_NAME=delivery-api \
 	uv run -m backend.delivery.a2a
 
 .PHONY: coffee-api
-coffee-api:
+coffee-api: ## 调试 - 启动 Coffee API 服务
 	uv run -m backend.coffee.main
 
 .PHONY: delivery-api
-delivery-api:
+delivery-api: ## 调试 - 启动 Delivery API 服务
 	uv run -m backend.delivery.main
 
-ACCESS=ohyee
 
-.PHONY: deps
-deps:
-	s build -a ${ACCESS}
+s_test.yaml: s.yaml
+	cat s.yaml \
+	| sed 's/{{ *region *}}/cn-hangzhou/g' \
+	| sed 's/{{ *agentRuntimeName *}}/buy-me-a-coffee/g' \
+	| sed 's/{{ *role *}}/$${config("AccountID")}:role\/buy-me-a-coffee/g' \
+	| sed 's/{{ *modelServiceName *}}/sdk-test-model-service/g' \
+	| sed 's/{{ *modelName *}}/qwen3-max/g' \
+	> s_test.yaml
 
 .PHONY: deploy
-deploy:
-	s deploy -a ${ACCESS} -y
+deploy: s_test.yaml push ## 部署到测试环境
+	s deploy -a ${ACCESS} -y --skip-push --debug -t s_test.yaml
+
+
+.PHONY: build
+build: ## 构建 Docker 镜像
+	docker build --platform linux/amd64 \
+		-t ${DOCKER_IMAGE} backend/
+
+.PHONY:image
+image: ## 显示最新构建的镜像
+	@echo ${LATEST_IMAGE} 
+
+.PHONY: docker-build-push
+push: ## 推送最新构建的镜像到远程仓库
+	docker push ${LATEST_IMAGE}
+	
+.PHONY: push-all
+push-all: ## 推送镜像到所有 region
+	@for region in cn-shanghai cn-beijing cn-shenzhen; do \
+		image=$$(echo ${LATEST_IMAGE} | sed  "s/cn-hangzhou/$${region}/"); \
+		echo docker tag ${LATEST_IMAGE} $$image; \
+		echo docker push $$image; \
+	done
+
+src/README.md: README.md
+	@mkdir -p src
+	@cp README.md src/README.md
+
+src/s.yaml: s.yaml
+	@mkdir -p src
+	@cp s.yaml src/s.yaml
+
+src/coffee.yaml: coffee.yaml
+	@mkdir -p src
+	@cp coffee.yaml src/coffee.yaml
+
+src/delivery.yaml: delivery.yaml
+	@mkdir -p src
+	@cp delivery.yaml src/delivery.yaml
+
+src/frontend/dist/index.cjs: frontend/dist/index.cjs
+	@mkdir -p src/frontend/dist
+	@cp -r frontend/dist/ src/frontend/dist
+
+registry: src/README.md src/s.yaml src/frontend/dist/index.cjs src/coffee.yaml src/delivery.yaml push ## 发布到 Serverless Devs
+	s registry publish
+

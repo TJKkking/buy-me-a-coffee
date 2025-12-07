@@ -34,9 +34,9 @@ COFFEE_TOOLSET_NAME = get_env_with_default("", "COFFEE_TOOLSET_NAME")
 DELIVERY_TOOLSET_NAME = get_env_with_default("", "DELIVERY_TOOLSET_NAME")
 from agentrun.integration.google_adk import model, toolset
 
-DEFAULT_LLM = model(
-    get_env_with_default("sdk-test-model-service", "AGENTRUN_MODEL_NAME")
-)
+MODEL_NAME = get_env_with_default("", "MODEL_NAME")
+AGENTRUN_MODEL_NAME = get_env_with_default("", "AGENTRUN_MODEL_NAME")
+DEFAULT_LLM = model(AGENTRUN_MODEL_NAME, model=MODEL_NAME)
 COFFEE_TOOLSET = toolset(COFFEE_TOOLSET_NAME) if COFFEE_TOOLSET_NAME else []
 DEVELIVERY_TOOLSET = toolset(DELIVERY_TOOLSET_NAME) if DELIVERY_TOOLSET_NAME else []
 
@@ -60,19 +60,29 @@ API_HOST = get_env_with_default(
 
 # 各服务端口配置
 GATEWAY_PORT = int(
-    get_env_with_default("8000", "GATEWAY_PORT", "FC_SERVER_PORT")
+    get_env_with_default(
+        "8000", "GATEWAY_PORT", "FC_SERVER_PORT", "FC_CUSTOM_LISTEN_PORT"
+    )
 )  # 主网关/Agent
 COFFEE_API_PORT = int(
-    get_env_with_default("8001", "COFFEE_API_PORT", "FC_SERVER_PORT")
+    get_env_with_default(
+        "8001", "COFFEE_API_PORT", "FC_SERVER_PORT", "FC_CUSTOM_LISTEN_PORT"
+    )
 )  # 咖啡店后端 API
 DELIVERY_API_PORT = int(
-    get_env_with_default("8002", "DELIVERY_API_PORT", "FC_SERVER_PORT")
+    get_env_with_default(
+        "8002", "DELIVERY_API_PORT", "FC_SERVER_PORT", "FC_CUSTOM_LISTEN_PORT"
+    )
 )  # 配送后端 API
 COFFEE_A2A_PORT = int(
-    get_env_with_default("8003", "COFFEE_A2A_PORT", "FC_SERVER_PORT")
+    get_env_with_default(
+        "8003", "COFFEE_A2A_PORT", "FC_SERVER_PORT", "FC_CUSTOM_LISTEN_PORT"
+    )
 )  # 咖啡店 Agent A2A
 DELIVERY_A2A_PORT = int(
-    get_env_with_default("8004", "DELIVERY_A2A_PORT", "FC_SERVER_PORT")
+    get_env_with_default(
+        "8004", "DELIVERY_A2A_PORT", "FC_SERVER_PORT", "FC_CUSTOM_LISTEN_PORT"
+    )
 )  # 配送 Agent A2A
 
 

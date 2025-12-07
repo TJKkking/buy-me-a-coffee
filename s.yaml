@@ -2,10 +2,12 @@ edition: 3.0.0
 name: buy-me-a-coffee
 access: '{{ access }}'
 vars:
-  region: 'cn-hangzhou'
-  name: 'buy-me-a-coffee'
-  role: "acs:ram::${config('AccountID')}:role/buy-me-a-coffee"
-  model_name: 'model-68sWBa'
+  region: '{{ region }}'
+  name: '{{ agentRuntimeName }}'
+  role: '{{ role }}'
+  model_service_name: '{{ modelServiceName }}'
+  model_name: '{{ modelName }}'
+  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-a-coffee-251206-095629
 
 template:
   tpl:
@@ -17,20 +19,14 @@ template:
     diskSize: 512
     timeout: 3600
     instanceConcurrency: 100
-    customRuntimeConfig:
-      port: 9000
 
-    runtime: custom.debian11
-    code: ./backend
-
-    layers:
-      - acs:fc:cn-hangzhou:1011863232026330:layers/buy-me-a-coffee/versions/1
+    runtime: custom-container
+    customContainerConfig:
+      image: ${vars.image}
+      port: 8000
     environmentVariables:
-      PATH: /var/fc/lang/python3.12/bin:/code/python/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/code:/code/bin:/opt:/opt/bin
-      LD_LIBRARY_PATH: /code:/code/lib:/usr/lib:/opt/lib:/usr/local/lib
-      PYTHONPATH: /opt/python:/code/python:/code
-
-      AGENTRUN_MODEL_NAME: ${vars.model_name}
+      AGENTRUN_MODEL_NAME: ${vars.model_service_name}
+      MODEL_NAME: ${vars.model_name}
 
     logConfig: auto
     triggers:
@@ -43,41 +39,32 @@ template:
             - POST
             - PUT
             - DELETE
-    
-    provisionConfig:
-        target: 0
-        alwaysAllocateGPU: false
-        alwaysAllocateCPU: false
 
   tpl-agent:
     region: ${vars.region}
     role: ${vars.role}
 
     agent:
-      code:
-        src: ./backend
-        language: python3.12
-        command:
-          - python3
-          - src/main.py
+      customContainerConfig:
+        image: ${vars.image}
+        port: 9000
 
       cpu: 1.0
       memory: 2048
 
-      port: 9000
+      port: 8000
       instanceConcurrency: 100
 
+      logConfig: auto
       internetAccess: true
-
-      layers:
-        - acs:fc:cn-hangzhou:${config('AccountID')}:layers/buy-me-a-coffee/versions/1
       environmentVariables:
-        PATH: /var/fc/lang/python3.12/bin:/code/python/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/code:/code/bin:/opt:/opt/bin
-        LD_LIBRARY_PATH: /code:/code/lib:/usr/lib:/opt/lib:/usr/local/lib
-        PYTHONPATH: /opt/python:/code/python:/code
+        AGENTRUN_MODEL_NAME: ${vars.model_service_name}
+        MODEL_NAME: ${vars.model_name}
 
-        AGENTRUN_MODEL_NAME: ${vars.model_name}
-        
+      endpoints:
+        - name: Default
+          version: LATEST
+
 resources:
   coffee-api:
     component: fc3
@@ -91,36 +78,30 @@ resources:
     props:
       functionName: ${vars.name}_coffee_api
       description: 'Buy Me A Coffee - 希希咖啡店 API'
-      customRuntimeConfig:
+      customContainerConfig:
         command:
-          - python3
+          - python
           - -m
           - coffee.main
 
   coffee-agent:
-    component: fc3
+    component: agentrun
     extend:
-      name: tpl
+      name: tpl-agent
     props:
-      functionName: ${vars.name}_coffee_agent
-      description: 'Buy Me A Coffee - 希希咖啡店 Agent'
-      customRuntimeConfig:
-        command:
-          - python3
-          - -m
-          - coffee.a2a
-      environmentVariables:
-        # COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
-        COFFEE_A2A_URL: 'http://${this.props.functionName}.fcv3.${config("AccountID")}.${this.props.region}.fc.devsapp.net'
-        COFFEE_TOOLSET_NAME: 'xixi-coffee-api'
+      agent:
+        name: ${vars.name}_coffee_agent
+        description: 'Buy Me A Coffee - 希希咖啡店 Agent'
+        customContainerConfig:
+          command:
+            - "python"
+            - "-m"
+            - coffee.a2a
+        environmentVariables:
+          # 自己的 endpoint 地址
+          COFFEE_A2A_URL: "https://${config('AccountID')}.agentrun-data.${vars.region}.aliyuncs.com/agent-runtimes/${this.props.agent.name}/endpoints/Default/invocations"
+          COFFEE_TOOLSET_NAME: 'xixi-coffee-api'
 
-      customDomain:
-        protocol: 'HTTP'
-        route:
-          path: '/*'
-          qualifier: 'LATEST'
-        domainName: auto
-          
   delivery-api:
     component: fc3
     extend:
@@ -133,54 +114,49 @@ resources:
     props:
       functionName: ${vars.name}_delivery_api
       description: 'Buy Me A Coffee - 送了么配送 API'
-      customRuntimeConfig:
+      customContainerConfig:
         command:
-          - python3
+          - python
           - -m
           - delivery.main
-  
-  delivery-agent:
-    component: fc3
-    extend:
-      name: tpl
-    props:
-      functionName: ${vars.name}_delivery_agent
-      description: 'Buy Me A Coffee - 送了么配送 Agent'
-      customRuntimeConfig:
-        command:
-          - python3
-          - -m
-          - delivery.a2a
-      environmentVariables:
-        # DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
-        DELIVERY_A2A_URL: 'http://${this.props.functionName}.fcv3.${config("AccountID")}.${this.props.region}.fc.devsapp.net'
-        DELIVERY_TOOLSET_NAME: delivery-api
 
-      customDomain:
-        protocol: 'HTTP'
-        route:
-          path: '/*'
-          qualifier: 'LATEST'
-        domainName: auto
-          
-  assistant-agent:
-    component: fc3
+  delivery-agent:
+    component: agentrun
     extend:
-      name: tpl
+      name: tpl-agent
     props:
-      functionName: ${vars.name}_assistant_agent
-      description: 'Buy Me A Coffee - 寒小艾 Agent'
-      customRuntimeConfig:
-        command:
-          - python3
-          - -m
-          - gateway.main
-      environmentVariables:
-        DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
-        COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
-        A2A_URLS: '${resources.coffee-agent.output.url.system_url},${resources.delivery-agent.output.url.system_url}'
-          
-  web:
+      agent:
+        name: ${vars.name}_delivery_agent
+        description: 'Buy Me A Coffee - 送了么配送 Agent'
+        customContainerConfig:
+          command:
+            - "python"
+            - -m
+            - delivery.a2a
+        environmentVariables:
+          # 自己的 endpoint 地址
+          DELIVERY_A2A_URL: "https://${config('AccountID')}.agentrun-data.${vars.region}.aliyuncs.com/agent-runtimes/${this.props.agent.name}/endpoints/Default/invocations"
+          DELIVERY_TOOLSET_NAME: delivery-api
+
+  assistant-agent:
+    component: agentrun
+    extend:
+      name: tpl-agent
+    props:
+      agent:
+        name: ${vars.name}_assistant_agent
+        description: 'Buy Me A Coffee - 寒小艾 Agent'
+        customContainerConfig:
+          command:
+            - "python"
+            - "-m"
+            - gateway.main
+        environmentVariables:
+          DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
+          COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
+          A2A_URLS: "${resources.coffee-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json,${resources.delivery-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json"
+
+  main_web:
     component: fc3
     props:
       region: ${vars.region}
@@ -193,7 +169,7 @@ resources:
       customRuntimeConfig:
         command:
           - node
-          - index.js
+          - index.cjs
 
       cpu: 0.5
       memory: 512
@@ -206,7 +182,8 @@ resources:
       internetAccess: true
 
       environmentVariables:
-        ENDPOINT: '${resources.assistant-agent.output.url.system_url}'
+        # ENDPOINT: '${resources.assistant-agent.output.url.system_url}'
+        ENDPOINT: "https://${config('AccountID')}.agentrun-data.${vars.region}.aliyuncs.com/agent-runtimes/${resources.assistant-agent.output.agent.name}/endpoints/Default/invocations"
 
       customDomain:
         protocol: 'HTTP'

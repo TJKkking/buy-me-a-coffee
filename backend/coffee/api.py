@@ -51,8 +51,9 @@ async def get_product(product_id: int):
 @router.post("/orders")
 async def create_order(request: CreateOrderRequest):
     """创建订单"""
+    print(0000)
     items = [item.model_dump() for item in request.items]
-
+    print(1234)
     order = await coffee_db.create_order(
         items=items,
         customer_name=request.customer_name,
@@ -60,6 +61,8 @@ async def create_order(request: CreateOrderRequest):
         customer_address=request.customer_address,
         notes=request.notes,
     )
+    print(7890)
+    print(order)
 
     return {
         "success": True,
