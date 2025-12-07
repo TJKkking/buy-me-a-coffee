@@ -7,7 +7,7 @@ vars:
   role: '{{ role }}'
   model_service_name: '{{ modelServiceName }}'
   model_name: '{{ modelName }}'
-  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-a-coffee-251206-095629
+  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251207-174545
 
 template:
   tpl:
@@ -43,8 +43,8 @@ template:
   tpl-agent:
     region: ${vars.region}
     role: ${vars.role}
-
     agent:
+      role: ${vars.role}
       customContainerConfig:
         image: ${vars.image}
         port: 9000

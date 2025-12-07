@@ -62,8 +62,8 @@ s_test.yaml: s.yaml
 	cat s.yaml \
 	| sed 's/{{ *region *}}/cn-hangzhou/g' \
 	| sed 's/{{ *agentRuntimeName *}}/buy-me-a-coffee/g' \
-	| sed 's/{{ *role *}}/$${config("AccountID")}:role\/buy-me-a-coffee/g' \
-	| sed 's/{{ *modelServiceName *}}/sdk-test-model-service/g' \
+	| sed 's/{{ *role *}}/acs:ram::$${config("AccountID")}:role\/buy-me-a-coffee/g' \
+	| sed 's/{{ *modelServiceName *}}/model-68sWBa/g' \
 	| sed 's/{{ *modelName *}}/qwen3-max/g' \
 	> s_test.yaml
 
@@ -75,7 +75,7 @@ deploy: s_test.yaml push ## 部署到测试环境
 .PHONY: build
 build: ## 构建 Docker 镜像
 	docker build --platform linux/amd64 \
-		-t ${DOCKER_IMAGE} backend/
+		-t ${DOCKER_IMAGE} backend
 
 .PHONY:image
 image: ## 显示最新构建的镜像
@@ -89,9 +89,13 @@ push: ## 推送最新构建的镜像到远程仓库
 push-all: ## 推送镜像到所有 region
 	@for region in cn-shanghai cn-beijing cn-shenzhen; do \
 		image=$$(echo ${LATEST_IMAGE} | sed  "s/cn-hangzhou/$${region}/"); \
-		echo docker tag ${LATEST_IMAGE} $$image; \
-		echo docker push $$image; \
+		docker tag ${LATEST_IMAGE} $$image; \
+		docker push $$image; \
 	done
+
+.PHONY: prewarm
+prewarm: push-all
+	IMAGE=${LATEST_IMAGE} bash ./prewarm.sh
 
 src/README.md: README.md
 	@mkdir -p src
@@ -113,6 +117,6 @@ src/frontend/dist/index.cjs: frontend/dist/index.cjs
 	@mkdir -p src/frontend/dist
 	@cp -r frontend/dist/ src/frontend/dist
 
-registry: src/README.md src/s.yaml src/frontend/dist/index.cjs src/coffee.yaml src/delivery.yaml push ## 发布到 Serverless Devs
+registry: src/README.md src/s.yaml src/frontend/dist/index.cjs src/coffee.yaml src/delivery.yaml prewarm ## 发布到 Serverless Devs
 	s registry publish
 

@@ -7,7 +7,6 @@ dist
 build
 .git
 data
-frontend/dist
 *.db
 *.sqlite3
 /.cache
