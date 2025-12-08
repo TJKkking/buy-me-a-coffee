@@ -1,93 +1,6 @@
+# 希希咖啡店 - 多 Agent 协同模板
 
-> 注：当前项目为 Serverless Devs 应用，由于应用中会存在需要初始化才可运行的变量（例如应用部署地区、函数名等等），所以**不推荐**直接 Clone 本仓库到本地进行部署或直接复制 s.yaml 使用，**强烈推荐**通过 `s init ${模版名称}` 的方法或应用中心进行初始化，详情可参考[部署 & 体验](#部署--体验) 。
-
-# buy-me-a-coffee 帮助文档
-<p align="center" class="flex justify-center">
-    <a href="https://www.serverless-devs.com" class="ml-1">
-    <img src="http://editor.devsapp.cn/icon?package=buy-me-a-coffee&type=packageType">
-  </a>
-  <a href="http://www.devsapp.cn/details.html?name=buy-me-a-coffee" class="ml-1">
-    <img src="http://editor.devsapp.cn/icon?package=buy-me-a-coffee&type=packageVersion">
-  </a>
-  <a href="http://www.devsapp.cn/details.html?name=buy-me-a-coffee" class="ml-1">
-    <img src="http://editor.devsapp.cn/icon?package=buy-me-a-coffee&type=packageDownload">
-  </a>
-</p>
-
-<description>
-
-希希咖啡店——AgentRun A2A 协议多 Agent 案例
-
-</description>
-
-<codeUrl>
-
-
-
-</codeUrl>
-<preview>
-
-
-
-</preview>
-
-
-## 前期准备
-
-使用该项目，您需要有开通以下服务：
-
-<service>
-</service>
-
-推荐您拥有以下的产品权限 / 策略：
-<auth>
-
-
-
-| 服务/业务 |  权限 |  备注  |
-| --- |  --- |   --- |
-| 函数计算 | AliyunFCFullAccess |   |
-| AgentRun | AliyunAgentRunFullAccess |   |
-| FunctionAI | AliyunDevsReadOnlyAccess |   |
-
-</auth>
-
-<remark>
-
-
-
-</remark>
-
-<disclaimers>
-
-
-
-</disclaimers>
-
-## 部署 & 体验
-
-<appcenter>
-   
-- :fire: 通过 [Serverless 应用中心](https://fcnext.console.aliyun.com/applications/create?template=buy-me-a-coffee) ，
-  [![Deploy with Severless Devs](https://img.alicdn.com/imgextra/i1/O1CN01w5RFbX1v45s8TIXPz_!!6000000006118-55-tps-95-28.svg)](https://fcnext.console.aliyun.com/applications/create?template=buy-me-a-coffee) 该应用。
-   
-</appcenter>
-<deploy>
-    
-- 通过 [Serverless Devs Cli](https://www.serverless-devs.com/serverless-devs/install) 进行部署：
-  - [安装 Serverless Devs Cli 开发者工具](https://www.serverless-devs.com/serverless-devs/install) ，并进行[授权信息配置](https://docs.serverless-devs.com/fc/config) ；
-  - 初始化项目：`s init buy-me-a-coffee -d buy-me-a-coffee`
-  - 进入项目，并进行项目部署：`cd buy-me-a-coffee && s deploy -y`
-   
-</deploy>
-
-## 应用详情
-
-<appdetail id="flushContent">
-
-### 希希咖啡店 - 多 Agent 协同模板
-
-#### 模板概述
+## 模板概述
 
 **希希咖啡店**是基于 Google ADK 框架构建的 A2A（Agent-to-Agent）协议多 Agent 协同案例模板。该模板展示了如何通过标准化的 A2A 协议，让通用智能体（寒小艾）与业务领域 Agent（希希咖啡店、送了么配送）实现无缝协同，并将业务后端服务通过 OpenAPI 快速集成。
 
@@ -102,7 +15,7 @@
 - OpenAPI 业务接口集成
 - 云原生弹性部署
 
-#### 技术架构
+## 技术架构
 
 **使用框架：** Google ADK（Agent Development Kit）
 
@@ -122,25 +35,62 @@
 - 后端服务提供 OpenAPI 规范接口
 - 支持自定义大语言模型选择
 
-### 功能说明
+## 功能说明
 
-#### 主要功能模块
+### 主要功能模块
 
 1. **通用对话**：寒小艾提供基础 AI 对话能力
 2. **咖啡点单**：调用希希咖啡店 Agent，通过 OpenAPI 访问后端服务
 3. **配送服务**：调用送了么 Agent，通过 OpenAPI 访问配送系统
 4. **全流程协同**：支持"咨询 → 下单 → 配送"完整业务链路
 
-#### Agent 能力
+### Agent 能力
 
 - **服务发现**：通过 A2A 协议连接业务 Agent
 - **工具调用**：通过 FunctionAI Toolset 集成后端 OpenAPI 服务
 - **能力组合**：灵活组合多个 Agent 和后端服务
 
 
-### 使用示例
+## 配置指南
 
-#### 应用场景示例
+### 模型配置
+
+在 AgentRun 控制台统一配置大语言模型，自动同步到所有 Agent：
+- 在"模型管理"中添加模型（OpenAI、通义千问、文心一言等）
+- 配置模型参数（温度、最大 Token、超时时间等）
+- 为不同 Agent 分配合适的模型
+
+### 后端服务集成
+
+在控制台将后端服务集成到 FunctionAI Toolset：
+
+1. **部署后端服务到函数计算**
+   - 上传希希咖啡店后端镜像
+   - 上传送了么后端镜像
+   - 配置触发器和环境变量
+
+2. **录入 OpenAPI 规范**
+   - 在 FunctionAI Toolset 中导入后端的 OpenAPI 规范文件
+   - 系统自动解析并生成可调用的工具
+   - 可在线更新 OpenAPI 规范，无需重新部署
+
+### Agent 部署
+
+在 AgentRun 控制台部署各个 Agent：
+- 上传 Agent 镜像（寒小艾、希希咖啡店、送了么）
+- 配置 A2A 通信地址
+- 关联 FunctionAI Toolset 中的工具
+
+### 可观测配置
+
+自动启用平台可观测能力：
+- **Token 监控**：实时查看各 Agent 的模型调用 Token 消耗
+- **日志查询**：按 Agent、时间、请求 ID 筛选日志
+- **链路追踪**：可视化完整的 Agent 调用链路和耗时
+
+## 使用示例
+
+### 应用场景示例
 
 **场景一：咖啡咨询**
 ```
@@ -157,27 +107,45 @@
 返回："订单已确认，预计 30 分钟送达，配送费 5 元"
 ```
 
+### 部署示例
 
+**步骤一：部署后端服务**
+- 在函数计算控制台创建服务
+- 上传希希咖啡店和送了么后端镜像
+- 记录函数的公网地址
 
-</appdetail>
+**步骤二：录入 OpenAPI**
+- 在 AgentRun 的 FunctionAI Toolset 中导入 OpenAPI 规范
+- 验证接口可用性
 
-## 使用文档
+**步骤三：部署 Agent**
+- 在 AgentRun 创建 Agent 实例
+- 关联已录入的 Toolset 工具
+- 配置 A2A 通信
 
-<usedetail id="flushContent">
-</usedetail>
+**步骤四：部署前端**
+- 在函数计算部署前端镜像（自定义运行时）
+- 配置环境变量指向寒小艾 Agent
 
+## 常见问题
 
-<devgroup>
+**Q：如何更换大语言模型？**
+A：在 AgentRun 控制台"模型管理"中切换，配置会自动同步到所有 Agent，无需重启服务。
 
+**Q：后端接口更新后如何处理？**
+A：在 FunctionAI Toolset 中重新导入更新后的 OpenAPI 规范，Agent 会自动使用最新接口定义。
 
-## 开发者社区
+**Q：如何排查 Agent 调用失败？**
+A：进入"可观测"模块，通过链路追踪功能定位失败环节，查看具体 Agent 或后端服务的错误日志。
 
-您如果有关于错误的反馈或者未来的期待，您可以在 [Serverless Devs repo Issues](https://github.com/serverless-devs/serverless-devs/issues) 中进行反馈和交流。如果您想要加入我们的讨论组或者了解 FC 组件的最新动态，您可以通过以下渠道进行：
+**Q：函数计算的优势是什么？**
+A：按量付费，无请求时零成本；毫秒级弹性伸缩，自动应对流量高峰；无需管理服务器。
 
-<p align="center">  
+**Q：Token 消耗如何优化？**
+A：通过可观测平台查看各 Agent 的 Token 使用情况，针对性优化 Prompt 或选择性价比更高的模型。
 
-| <img src="https://serverless-article-picture.oss-cn-hangzhou.aliyuncs.com/1635407298906_20211028074819117230.png" width="130px" > | <img src="https://serverless-article-picture.oss-cn-hangzhou.aliyuncs.com/1635407044136_20211028074404326599.png" width="130px" > | <img src="https://serverless-article-picture.oss-cn-hangzhou.aliyuncs.com/1635407252200_20211028074732517533.png" width="130px" > |
-| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| <center>微信公众号：`serverless`</center>                                                                                         | <center>微信小助手：`xiaojiangwh`</center>                                                                                        | <center>钉钉交流群：`33947367`</center>                                                                                           |
-</p>
-</devgroup>
+**注意事项：**
+- 确保函数计算服务有足够的并发配额
+- 后端 OpenAPI 规范应符合标准格式
+- 建议为生产环境配置独立的模型实例
+- 关注 Agent 间调用的超时配置，避免链路过长

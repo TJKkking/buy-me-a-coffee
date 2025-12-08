@@ -114,9 +114,23 @@ src/delivery.yaml: delivery.yaml
 	@cp delivery.yaml src/delivery.yaml
 
 src/frontend/dist/index.cjs: frontend/dist/index.cjs
-	@mkdir -p src/frontend/dist
-	@cp -r frontend/dist/ src/frontend/dist
+	@mkdir -p src/frontend
+	@find frontend -type f ! -path *node_modules* | xargs -I {} bash -c "mkdir -p \$$(dirname src/{}) && cp {} src/{}"
+	
 
-registry: src/README.md src/s.yaml src/frontend/dist/index.cjs src/coffee.yaml src/delivery.yaml prewarm ## 发布到 Serverless Devs
+src/backend: backend/**/*
+	@mkdir -p src/backend
+	@cp -r backend/ src/backend
+
+.PHONY: prepare-registry
+prepare-registry: src/README.md src/s.yaml src/coffee.yaml src/delivery.yaml 
+
+.PHONY: prepare-frontend
+prepare-frontend: src/frontend/dist/index.cjs
+
+.PHONY: prepare-backend
+prepare-backend: src/backend
+
+registry: prepare-registry prepare-frontend prewarm ## 发布到 Serverless Devs
 	s registry publish
 
