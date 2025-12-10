@@ -72,7 +72,7 @@ resources:
       name: tpl
     actions:
       complete-deploy:
-        - plugin: cap-tool-plugin
+        - plugin: cap-tool-plugin@0.0.7
           args: # 插件的参数
             schema: ${file(./coffee.yaml)}
     props:
@@ -108,7 +108,7 @@ resources:
       name: tpl
     actions:
       complete-deploy:
-        - plugin: cap-tool-plugin
+        - plugin: cap-tool-plugin@0.0.7
           args: # 插件的参数
             schema: ${file(./delivery.yaml)}
     props:
