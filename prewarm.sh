@@ -67,6 +67,7 @@ EOF
 export -f doRegion
 export TAG
 export FAILED_FILE
+export NAME
 
 rm -f "${FAILED_FILE}"
 echo "${REGIONS}" | sed 's/ /\n/g' | xargs -P8 -I {} bash -c 'doRegion "{}"'

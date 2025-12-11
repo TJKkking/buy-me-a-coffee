@@ -17,6 +17,6 @@ requests>=2.31.0
 
 
 # agentrun-inner-test[google-adk]==0.0.14
-agentrun-sdk[google-adk]>=0.0.5
+agentrun-sdk[google-adk]>=0.0.7
 alibabacloud_tea_openapi>=0.4.2
 a2a-sdk

@@ -86,7 +86,7 @@ push: ## 推送最新构建的镜像到远程仓库
 	docker push ${LATEST_IMAGE}
 	
 .PHONY: push-all
-push-all: ## 推送镜像到所有 region
+push-all: push ## 推送镜像到所有 region
 	@for region in cn-shanghai cn-beijing cn-shenzhen; do \
 		image=$$(echo ${LATEST_IMAGE} | sed  "s/cn-hangzhou/$${region}/"); \
 		docker tag ${LATEST_IMAGE} $$image; \

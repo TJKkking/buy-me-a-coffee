@@ -7,7 +7,7 @@ vars:
   role: '{{ role }}'
   model_service_name: '{{ modelServiceName }}'
   model_name: '{{ modelName }}'
-  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251207-174545
+  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251211-020725
 
 template:
   tpl:
@@ -144,7 +144,7 @@ resources:
       name: tpl-agent
     props:
       agent:
-        name: ${vars.name}_assistant_agent
+        name: ${vars.name} # 为了方便前端识别，这里不加后缀
         description: 'Buy Me A Coffee - 寒小艾 Agent'
         customContainerConfig:
           command:
