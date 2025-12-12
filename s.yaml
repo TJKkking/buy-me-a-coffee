@@ -7,7 +7,7 @@ vars:
   role: '{{ role }}'
   model_service_name: '{{ modelServiceName }}'
   model_name: '{{ modelName }}'
-  image: registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251211-020725
+  image: registry.${vars.region}.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251211-020725
 
 template:
   tpl:
@@ -25,6 +25,7 @@ template:
       image: ${vars.image}
       port: 8000
     environmentVariables:
+      TZ: Asia/Shanghai
       AGENTRUN_MODEL_NAME: ${vars.model_service_name}
       MODEL_NAME: ${vars.model_name}
 
@@ -58,6 +59,7 @@ template:
       logConfig: auto
       internetAccess: true
       environmentVariables:
+        TZ: Asia/Shanghai
         AGENTRUN_MODEL_NAME: ${vars.model_service_name}
         MODEL_NAME: ${vars.model_name}
 
@@ -108,7 +110,7 @@ resources:
       name: tpl
     actions:
       complete-deploy:
-        - plugin: cap-tool-plugin@0.0.7
+        - plugin: cap-tool-plugin@0.0.8
           args: # 插件的参数
             schema: ${file(./delivery.yaml)}
     props:

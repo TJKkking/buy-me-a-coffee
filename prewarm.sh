@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-REGIONS="cn-beijing cn-shanghai cn-shenzhen cn-hangzhou"
+REGIONS="cn-beijing cn-shanghai cn-shenzhen cn-hangzhou ap-southeast-1"
 FAILED_FILE="temp/prewarm-failed"
 NAME=prewarm-image-$(echo $IMAGE | md5sum | awk '{print $1}')
 
