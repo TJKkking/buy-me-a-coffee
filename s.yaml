@@ -29,7 +29,7 @@ template:
       AGENTRUN_MODEL_NAME: ${vars.model_service_name}
       MODEL_NAME: ${vars.model_name}
 
-    logConfig: auto
+    # logConfig: auto
     triggers:
       - triggerName: httpTrigger
         triggerType: http
@@ -56,7 +56,7 @@ template:
       port: 8000
       instanceConcurrency: 100
 
-      logConfig: auto
+      # logConfig: auto
       internetAccess: true
       environmentVariables:
         TZ: Asia/Shanghai
@@ -74,7 +74,7 @@ resources:
       name: tpl
     actions:
       complete-deploy:
-        - plugin: cap-tool-plugin@0.0.7
+        - plugin: cap-tool-plugin@0.0.8
           args: # 插件的参数
             schema: ${file(./coffee.yaml)}
     props:
