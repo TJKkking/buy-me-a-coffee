@@ -1,7 +1,7 @@
 Edition: 3.0.0
 Type: Project
 Name: buy-me-a-coffee
-Version: 0.0.10
+Version: 0.0.12
 Provider:
   - 阿里云
 Description: 希希咖啡店——AgentRun A2A 协议多 Agent 案例

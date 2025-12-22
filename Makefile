@@ -1,6 +1,6 @@
 ACCESS ?= ohyee
-DOCKER_IMAGE ?= "registry.cn-hangzhou.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-${shell date -u +'%y%m%d-%H%M%S'}" 
-LATEST_IMAGE ?= ${shell docker images | awk '/cn-hangzhou/ && /buy-me-a-coffee/ { printf "%s:%s\n", $$1, $$2 }'  | sed -n 1p}
+DOCKER_IMAGE ?= "cap-demo-public-registry.cn-hangzhou.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-${shell date -u +'%y%m%d-%H%M%S'}" 
+LATEST_IMAGE ?= ${shell docker images | awk '/cn-hangzhou/ && /agentrun-demo/ &&/buy-me-a-coffee/ { printf "%s:%s\n", $$1, $$2 }'  | sed -n 1p}
 FRONTEND_SOURCES ?= $(shell find frontend -type f -not -path "*/node_modules/*" -not -path "*/dist/*")
 
 
@@ -94,7 +94,7 @@ push-all: push ## 推送镜像到所有 region
 	done
 
 .PHONY: prewarm
-prewarm: push-all
+prewarm: push
 	IMAGE=${LATEST_IMAGE} bash ./prewarm.sh
 
 src/README.md: README.md
@@ -131,6 +131,6 @@ prepare-frontend: src/frontend/dist/index.cjs
 .PHONY: prepare-backend
 prepare-backend: src/backend
 
-registry: prepare-registry prepare-frontend prewarm ## 发布到 Serverless Devs
+registry: prepare-registry prepare-frontend ## 发布到 Serverless Devs
 	s registry publish
 
