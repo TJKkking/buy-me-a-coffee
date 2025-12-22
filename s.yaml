@@ -8,7 +8,7 @@ vars:
   model_service_name: '{{ modelServiceName }}'
   model_name: '{{ modelName }}'
   # image: registry.${vars.region}.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251211-020725
-  image: "cap-demo-public-registry.{{ if region.includes('cn-') }}cn-hangzhou{{ else }}ap-southeast-1{{ /if }}.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-251211-020725"
+  image: "cap-demo-public-registry.cn-hangzhou.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-251211-020725"
 
 template:
   tpl:
