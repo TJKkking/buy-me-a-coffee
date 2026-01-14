@@ -57,6 +57,7 @@ interface Delivery {
 interface AdminPanelProps {
   refreshTrigger: number;
   onRefresh?: () => void;
+  setAdminLoading: (loading: boolean) => void;
 }
 
 // 咖啡订单状态配置
@@ -176,6 +177,7 @@ const deliveryStatusFlow = [
 export default function AdminPanel({
   refreshTrigger,
   onRefresh,
+  setAdminLoading,
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'coffee' | 'delivery'>('coffee');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -190,21 +192,24 @@ export default function AdminPanel({
 
   const fetchData = async () => {
     try {
+      const [ordersRes, deliveriesRes] = await Promise.all([
+        fetch(`${ENDPOINT}/api/coffee/orders?limit=50`),
+        fetch(`${ENDPOINT}/api/delivery/deliveries?limit=50`),
+      ]);
+
       // 获取咖啡订单
-      const ordersRes = await fetch(`${ENDPOINT}/api/coffee/orders?limit=50`);
       const ordersData = await ordersRes.json();
       if (ordersData.success) {
         setOrders(ordersData.data);
       }
 
       // 获取配送订单
-      const deliveriesRes = await fetch(
-        `${ENDPOINT}/api/delivery/deliveries?limit=50`
-      );
       const deliveriesData = await deliveriesRes.json();
       if (deliveriesData.success) {
         setDeliveries(deliveriesData.data);
       }
+
+      if (ordersData.success && deliveriesData.success) setAdminLoading(false);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {

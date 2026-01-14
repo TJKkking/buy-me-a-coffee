@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CopilotKit } from '@copilotkit/react-core';
 import '@copilotkit/react-ui/styles.css';
 import PhoneSimulator from './components/PhoneSimulator';
@@ -253,24 +253,39 @@ function App() {
   // 从 /api/agents 获取 Agent 列表
   useEffect(() => {
     setAgentsLoading(true);
-    fetch(`${ENDPOINT}/api/agents`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.agents) {
-          setAgents(data.agents);
+
+    (async () => {
+      while (true) {
+        try {
+          const resp = await fetch(`${ENDPOINT}/api/agents`);
+          const data = await resp.json();
+          if (data.success && data.agents) {
+            setAgents(data.agents);
+          }
+
+          if (data.agents.length >= 2) {
+            setAgentsLoading(false);
+            break;
+          }
+        } catch (err) {
+          console.error('Failed to fetch agents:', err);
         }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch agents:', err);
-      })
-      .finally(() => {
-        setAgentsLoading(false);
-      });
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    })();
   }, []);
 
   const handleOrderCreated = () => {
     setRefreshKey((k) => k + 1);
   };
+
+  const [adminLoading, setAdminLoading] = useState(true);
+
+  const isReady = useMemo(() => {
+    console.log(agentsLoading, agents.length, adminLoading);
+    return !agentsLoading && agents.length >= 2 && !adminLoading;
+  }, [agentsLoading, adminLoading, agents]);
 
   return (
     <CopilotKit runtimeUrl={`${ENDPOINT}/api/copilotkit`}>
@@ -328,7 +343,10 @@ function App() {
 
             {/* 手机模拟器 */}
             <div className='relative z-10'>
-              <PhoneSimulator onOrderCreated={handleOrderCreated} />
+              <PhoneSimulator
+                onOrderCreated={handleOrderCreated}
+                isReady={isReady}
+              />
             </div>
 
             {/* 提示文字 */}
@@ -352,6 +370,7 @@ function App() {
             {/* 后台面板 */}
             <div className='flex-1 overflow-hidden'>
               <AdminPanel
+                setAdminLoading={setAdminLoading}
                 refreshTrigger={refreshKey}
                 onRefresh={() => setRefreshKey((k) => k + 1)}
               />
@@ -369,8 +388,8 @@ function App() {
                   {agentsLoading
                     ? '正在加载 A2A 服务...'
                     : agents.length > 0
-                      ? `${agents.length} 个 A2A 服务运行中`
-                      : '无 A2A 服务'}
+                    ? `${agents.length} 个 A2A 服务运行中`
+                    : '无 A2A 服务'}
                 </span>
               </div>
 

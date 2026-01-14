@@ -58,7 +58,7 @@
 # done
 
 
-REGIONS="cn-beijing cn-shanghai cn-shenzhen cn-hangzhou ap-southeast-1"
+REGIONS="cn-beijing cn-shanghai cn-shenzhen cn-hangzhou ap-southeast-1 us-west-1"
 FAILED_FILE="temp/prewarm-failed"
 NAME=prewarm-image-$(echo $IMAGE | md5sum | awk '{print $1}')
 
@@ -100,9 +100,9 @@ resources:
       instanceConcurrency: 100
       cpu: 8
       memorySize: 16384
-      gpuConfig:
-        gpuMemorySize: 16384
-        gpuType: fc.gpu.tesla.1
+      # gpuConfig:
+      #   gpuMemorySize: 16384
+      #   gpuType: fc.gpu.tesla.1
 EOF
 
   echo "deploy to $REGION, ${NAME}"

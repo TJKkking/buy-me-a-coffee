@@ -28,6 +28,12 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -i "$PIP_INDEX_URL" -r /app/requirements.txt
+    
+# 探针
+RUN pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip3 config set install.trusted-host mirrors.aliyun.com
+RUN pip3 install aliyun-bootstrap
+RUN aliyun-bootstrap -a install
 
 # Copy project
 COPY . /app

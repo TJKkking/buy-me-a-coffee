@@ -8,7 +8,7 @@ vars:
   model_service_name: '{{ modelServiceName }}'
   model_name: '{{ modelName }}'
   # image: registry.${vars.region}.aliyuncs.com/ohyee/fc-demo:buy-me-a-coffee-251211-020725
-  image: "cap-demo-public-registry.cn-hangzhou.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-251211-020725"
+  image: 'cap-demo-public-registry.cn-hangzhou.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-260114-101827'
 
 template:
   tpl:
@@ -83,6 +83,7 @@ resources:
       description: 'Buy Me A Coffee - 希希咖啡店 API'
       customContainerConfig:
         command:
+          - aliyun-instrument
           - python
           - -m
           - coffee.main
@@ -97,8 +98,9 @@ resources:
         description: 'Buy Me A Coffee - 希希咖啡店 Agent'
         customContainerConfig:
           command:
-            - "python"
-            - "-m"
+            - aliyun-instrument
+            - 'python'
+            - '-m'
             - coffee.a2a
         environmentVariables:
           # 自己的 endpoint 地址
@@ -119,6 +121,7 @@ resources:
       description: 'Buy Me A Coffee - 送了么配送 API'
       customContainerConfig:
         command:
+          - aliyun-instrument
           - python
           - -m
           - delivery.main
@@ -133,7 +136,8 @@ resources:
         description: 'Buy Me A Coffee - 送了么配送 Agent'
         customContainerConfig:
           command:
-            - "python"
+            - aliyun-instrument
+            - 'python'
             - -m
             - delivery.a2a
         environmentVariables:
@@ -151,13 +155,14 @@ resources:
         description: 'Buy Me A Coffee - 寒小艾 Agent'
         customContainerConfig:
           command:
-            - "python"
-            - "-m"
+            - aliyun-instrument
+            - 'python'
+            - '-m'
             - gateway.main
         environmentVariables:
           DELIVERY_API_URL: '${resources.delivery-api.output.url.system_url}'
           COFFEE_API_URL: '${resources.coffee-api.output.url.system_url}'
-          A2A_URLS: "${resources.coffee-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json,${resources.delivery-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json"
+          A2A_URLS: '${resources.coffee-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json,${resources.delivery-agent.output.agent.endpoints.0.url}/.well-known/agent-card.json'
 
   main_web:
     component: fc3

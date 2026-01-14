@@ -131,6 +131,6 @@ prepare-frontend: src/frontend/dist/index.cjs
 .PHONY: prepare-backend
 prepare-backend: src/backend
 
-registry: prepare-registry prepare-frontend prewarm ## 发布到 Serverless Devs
+registry: prepare-registry prepare-frontend # prewarm ## 发布到 Serverless Devs
 	s registry publish
 

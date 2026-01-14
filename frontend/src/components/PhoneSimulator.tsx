@@ -51,10 +51,12 @@ interface Message {
 
 interface PhoneSimulatorProps {
   onOrderCreated?: () => void;
+  isReady?: boolean;
 }
 
 export default function PhoneSimulator({
   onOrderCreated,
+  isReady,
 }: PhoneSimulatorProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -583,12 +585,17 @@ export default function PhoneSimulator({
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder='输入消息...'
+                  placeholder={
+                    isReady
+                      ? '输入消息...'
+                      : '等待其他 Agent 就绪，长时间未响应请刷新'
+                  }
+                  disabled={!isReady}
                   className='flex-1 h-8 px-3 text-gray-700 rounded-full border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-amber-50/50 placeholder-amber-400'
                 />
                 <button
                   type='submit'
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim() || isLoading || !isReady}
                   className='w-8 h-8 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-center hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md'
                 >
                   {isLoading ? (

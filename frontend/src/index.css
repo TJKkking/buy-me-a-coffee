@@ -18,7 +18,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
 }
@@ -117,7 +119,8 @@ body {
 
 /* 脉冲动画 */
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
   }
   50% {
@@ -189,7 +192,8 @@ body {
   margin: 0.25rem 0;
 }
 
-.prose-sm ul, .prose-sm ol {
+.prose-sm ul,
+.prose-sm ol {
   padding-left: 1.25rem;
   margin: 0.25rem 0;
 }
@@ -213,7 +217,9 @@ body {
 
 /* 加载动画 */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-spinner {
@@ -221,12 +227,24 @@ body {
 }
 
 /* 状态颜色 */
-.status-pending { color: #f59e0b; }
-.status-preparing { color: #3b82f6; }
-.status-ready { color: #10b981; }
-.status-delivering { color: #8b5cf6; }
-.status-completed { color: #6b7280; }
-.status-cancelled { color: #ef4444; }
+.status-pending {
+  color: #f59e0b;
+}
+.status-preparing {
+  color: #3b82f6;
+}
+.status-ready {
+  color: #10b981;
+}
+.status-delivering {
+  color: #8b5cf6;
+}
+.status-completed {
+  color: #6b7280;
+}
+.status-cancelled {
+  color: #ef4444;
+}
 
 /* 数字字体 */
 .font-mono {
@@ -234,57 +252,69 @@ body {
 }
 
 /* 手机模拟器响应式 */
+
 .phone-frame {
-  width: 320px;
-  height: 640px;
+    width: min(50vw, 500px);
+    height: min(60vh, 900px);
 }
 
-/* 大屏幕 - 更大的手机 */
-@media (min-height: 800px) and (min-width: 1400px) {
-  .phone-frame {
-    width: 380px;
-    height: 760px;
-  }
-}
-
-@media (min-height: 900px) and (min-width: 1600px) {
-  .phone-frame {
-    width: 420px;
-    height: 840px;
-  }
-}
-
-@media (min-height: 1000px) and (min-width: 1800px) {
-  .phone-frame {
-    width: 460px;
-    height: 920px;
-  }
-}
-
-/* 小屏幕 - 更小的手机 */
-@media (max-height: 700px) {
-  .phone-frame {
-    width: 280px;
-    height: 560px;
-  }
-}
-
+/* 
 @media (max-height: 600px) {
   .phone-frame {
-    width: 240px;
-    height: 480px;
+    height: 400px;
   }
 }
 
-/* 响应式调整 */
-@media (max-width: 1280px) {
-  .w-\[580px\] {
-    width: 480px;
+@media (max-height: 700px) {
+  .phone-frame {
+    height: 500px;
   }
 }
+
+@media (min-height: 800px) {
+  .phone-frame {
+    height: 700px;
+  }
+}
+
+@media (min-height: 900px) {
+  .phone-frame {
+    height: 700px;
+  }
+}
+
+@media (min-height: 1000px) {
+  .phone-frame {
+    height: 800px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .phone-frame {
+    width: 380px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .phone-frame {
+    width: 420px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .phone-frame {
+    height: 920px;
+  }
+} */
 
 @media (max-width: 1024px) {
   .w-\[580px\] {
     width: 420px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .w-\[580px\] {
+    width: 480px;
   }
 }
