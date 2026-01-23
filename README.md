@@ -1,5 +1,7 @@
 # 希希咖啡店 - 多 Agent 协同模板
 
+![](https://img.alicdn.com/imgextra/i3/O1CN012P6ju1253JjMv2RJX_!!6000000007470-2-tps-1584-672.png)
+
 ## 模板概述
 
 **希希咖啡店**是基于 Google ADK 框架构建的 A2A（Agent-to-Agent）协议多 Agent 协同案例模板。该模板展示了如何通过标准化的 A2A 协议，让通用智能体（寒小艾）与业务领域 Agent（希希咖啡店、送了么配送）实现无缝协同，并将业务后端服务通过 OpenAPI 快速集成。
