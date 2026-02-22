@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.a2a import get_agent_card_json
 from shared.server import build_fastapi_app
 
+import copy
 import json
 import uuid
 from typing import Optional
@@ -150,6 +151,80 @@ def serialize_event(event) -> dict:
         except:
             pass
     return result
+
+
+def _format_state_value(value, indent: int = 0) -> str:
+    """格式化单个 state 值，处理嵌套结构"""
+    prefix = "  " * indent
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        lines = ["{"]
+        for k, v in value.items():
+            lines.append(f"{prefix}    {k}: {_format_state_value(v, indent + 1)}")
+        lines.append(f"{prefix}  " + "}")
+        return "\n".join(lines)
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        if len(value) <= 3 and all(isinstance(v, (str, int, float, bool)) for v in value):
+            return f"[{', '.join(repr(v) for v in value)}]"
+        return f"[{len(value)} items]"
+    return repr(value)
+
+
+def _log_session_state(state: dict, label: str, session_id: str = ""):
+    """打印完整的 session state"""
+    sid_short = session_id[:8] if session_id else "?"
+    lines = [
+        f"\n📋 ┌{'─' * 58}",
+        f"📋 │ {label}  (session: {sid_short}…)",
+        f"📋 ├{'─' * 58}",
+    ]
+    if not state:
+        lines.append(f"📋 │   (empty)")
+    else:
+        for key in sorted(state.keys()):
+            val = _format_state_value(state[key])
+            if "\n" in val:
+                lines.append(f"📋 │   {key}: {val.split(chr(10))[0]}")
+                for sub in val.split("\n")[1:]:
+                    lines.append(f"📋 │   {sub}")
+            else:
+                lines.append(f"📋 │   {key}: {val}")
+    lines.append(f"📋 └{'─' * 58}\n")
+    print("\n".join(lines), flush=True)
+
+
+def _log_state_changes(prev: dict, curr: dict, trigger: str, session_id: str = ""):
+    """对比并打印 state 变更（仅打印差异）"""
+    all_keys = sorted(set(prev.keys()) | set(curr.keys()))
+    changes = []
+    for key in all_keys:
+        old_val = prev.get(key)
+        new_val = curr.get(key)
+        if old_val != new_val:
+            changes.append((key, old_val, new_val))
+    if not changes:
+        return
+    sid_short = session_id[:8] if session_id else "?"
+    lines = [
+        f"\n🔄 ┌{'─' * 58}",
+        f"🔄 │ State Changed  (session: {sid_short}…)",
+        f"🔄 │ trigger: {trigger}",
+        f"🔄 ├{'─' * 58}",
+    ]
+    for key, old_val, new_val in changes:
+        if old_val is None:
+            lines.append(f"🔄 │   + {key}: {_format_state_value(new_val)}")
+        elif new_val is None:
+            lines.append(f"🔄 │   - {key}: {_format_state_value(old_val)}")
+        else:
+            lines.append(f"🔄 │   ~ {key}:")
+            lines.append(f"🔄 │       before: {_format_state_value(old_val)}")
+            lines.append(f"🔄 │       after:  {_format_state_value(new_val)}")
+    lines.append(f"🔄 └{'─' * 58}\n")
+    print("\n".join(lines), flush=True)
 
 
 async def lifespan(app: FastAPI):
@@ -395,7 +470,9 @@ async def chat(request: ChatRequest, req: Request):
         session_service=session_service,
     )
 
-    await _get_or_create_session(session_id, store_id)
+    session = await _get_or_create_session(session_id, store_id)
+    _log_session_state(dict(session.state), "Chat Start", session_id)
+    prev_state = copy.deepcopy(dict(session.state))
 
     message = types.Content(
         role="user",
@@ -412,6 +489,14 @@ async def chat(request: ChatRequest, req: Request):
             for part in event.content.parts:
                 if hasattr(part, "text") and part.text:
                     response_text += part.text
+
+        curr_state = dict(session.state)
+        if curr_state != prev_state:
+            event_type = type(event).__name__
+            _log_state_changes(prev_state, curr_state, event_type, session_id)
+            prev_state = copy.deepcopy(curr_state)
+
+    _log_session_state(dict(session.state), "Chat End", session_id)
 
     return {
         "success": True,
@@ -432,7 +517,9 @@ async def chat_stream(request: ChatRequest, req: Request):
         session_service=session_service,
     )
 
-    await _get_or_create_session(session_id, store_id)
+    session = await _get_or_create_session(session_id, store_id)
+    _log_session_state(dict(session.state), "Chat Stream Start", session_id)
+    prev_state_snapshot = copy.deepcopy(dict(session.state))
 
     message = types.Content(
         role="user",
@@ -445,6 +532,8 @@ async def chat_stream(request: ChatRequest, req: Request):
 
     async def generate():
         """生成 SSE 事件"""
+        nonlocal prev_state_snapshot
+
         yield {
             "event": "session",
             "data": json.dumps({"session_id": session_id}),
@@ -458,6 +547,12 @@ async def chat_stream(request: ChatRequest, req: Request):
                 run_config=run_config,
             ):
                 event_type = type(event).__name__
+
+                # 检测 state 变更
+                curr_state = dict(session.state)
+                if curr_state != prev_state_snapshot:
+                    _log_state_changes(prev_state_snapshot, curr_state, event_type, session_id)
+                    prev_state_snapshot = copy.deepcopy(curr_state)
 
                 # 调试事件
                 yield {
@@ -549,6 +644,7 @@ async def chat_stream(request: ChatRequest, req: Request):
                 ),
             }
 
+        _log_session_state(dict(session.state), "Chat Stream End", session_id)
         yield {"event": "done", "data": "{}"}
 
     return EventSourceResponse(generate())
