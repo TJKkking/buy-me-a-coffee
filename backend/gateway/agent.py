@@ -6,15 +6,24 @@ Root Agent - 根 Agent（多门店版）
 """
 
 import os
-from typing import List
+from typing import Any, List
 from config import DEFAULT_LLM
 from google.adk import Agent
+from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 
 from assistant.agent import assistant_agent
 from coffee.agent import coffee_agent
 from delivery.agent import delivery_agent
+
+STORE_STATE_KEYS = ("store_id", "store_name", "store_address", "store_display_name")
+
+
+def _store_meta_provider(ctx: InvocationContext, msg) -> dict[str, Any]:
+    """从 Gateway session state 提取门店信息，注入 A2A 请求 metadata"""
+    state = ctx.session.state
+    return {k: state[k] for k in STORE_STATE_KEYS if k in state}
 
 
 def _dynamic_instruction(context: ReadonlyContext) -> str:
@@ -90,6 +99,7 @@ def create_root_agent(
                     name=f"remote_agent_{len(sub_agents)}",
                     agent_card=url,
                     description="远程 A2A 服务 Agent",
+                    a2a_request_meta_provider=_store_meta_provider,
                 )
             )
     else:

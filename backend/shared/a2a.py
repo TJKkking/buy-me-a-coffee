@@ -12,6 +12,37 @@ from google.adk.auth.credential_service.in_memory_credential_service import (
 )
 from google.adk.agents.base_agent import BaseAgent
 import httpx
+import logging
+
+logger = logging.getLogger("google_adk." + __name__)
+
+STORE_STATE_KEYS = ("store_id", "store_name", "store_address", "store_display_name")
+
+
+class StoreAwareA2aExecutor(A2aAgentExecutor):
+    """扩展 A2aAgentExecutor，从 A2A 请求 metadata 中提取门店信息写入远程 session state。
+
+    Gateway 通过 RemoteA2aAgent 的 a2a_request_meta_provider 将门店信息
+    注入 SendMessageRequest.metadata，本 Executor 在创建 session 后将其
+    桥接到 session.state，使远程 Agent 的工具函数能通过 ToolContext.state
+    读取 store_id，与统一部署模式行为一致。
+    """
+
+    async def _prepare_session(self, context, run_request, runner):
+        session = await super()._prepare_session(context, run_request, runner)
+        metadata = getattr(context, "metadata", None)
+        if metadata:
+            injected = []
+            for key in STORE_STATE_KEYS:
+                if key in metadata and key not in session.state:
+                    session.state[key] = metadata[key]
+                    injected.append(key)
+            if injected:
+                logger.info(
+                    "Injected store metadata into remote session: %s",
+                    ", ".join(f"{k}={session.state[k]}" for k in injected),
+                )
+        return session
 
 
 async def build_a2a_app(agent: BaseAgent, base_url: str) -> A2AStarletteApplication:
@@ -28,7 +59,7 @@ async def build_a2a_app(agent: BaseAgent, base_url: str) -> A2AStarletteApplicat
         )
 
     task_store = InMemoryTaskStore()
-    agent_executor = A2aAgentExecutor(runner=create_runner)
+    agent_executor = StoreAwareA2aExecutor(runner=create_runner)
     request_handler = DefaultRequestHandler(
         agent_executor=agent_executor,
         task_store=task_store,

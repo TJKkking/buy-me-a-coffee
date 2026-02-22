@@ -104,4 +104,4 @@ DELIVERY_API_URL = os.getenv(
 )
 
 COFFEE_A2A_URL = os.getenv("COFFEE_A2A_URL", f"http://localhost:{COFFEE_A2A_PORT}")
-DELIVERY_A2A_URL = os.getenv("DELIVERY_A2A_URL", f"http://localhost:{COFFEE_A2A_PORT}")
+DELIVERY_A2A_URL = os.getenv("DELIVERY_A2A_URL", f"http://localhost:{DELIVERY_A2A_PORT}")
