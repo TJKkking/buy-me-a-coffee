@@ -52,11 +52,13 @@ interface Message {
 interface PhoneSimulatorProps {
   onOrderCreated?: () => void;
   isReady?: boolean;
+  storeId: string;
 }
 
 export default function PhoneSimulator({
   onOrderCreated,
   isReady,
+  storeId,
 }: PhoneSimulatorProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -85,7 +87,29 @@ export default function PhoneSimulator({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 更新时间
+  useEffect(() => {
+    setSessionId(null);
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: `你好！
+
+我是你的智能助手，可以帮你：
+- 查询天气
+- 查询时间
+
+我已连接到希希咖啡店与送了么配送服务，可以帮你完成以下任务：
+- ☕ 点咖啡、查菜单
+- 📋 查询订单状态
+- 🛵 安排外卖配送
+
+有什么我可以帮你的吗？`,
+        timestamp: new Date(),
+      },
+    ]);
+  }, [storeId]);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -126,7 +150,10 @@ export default function PhoneSimulator({
     try {
       const response = await fetch(`${ENDPOINT}/api/chat/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Store-Id': storeId,
+        },
         body: JSON.stringify({
           message: userMessage.content,
           session_id: sessionId,

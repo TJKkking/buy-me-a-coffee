@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 _http_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="http_worker_")
 
 
-def _make_request(method: str, url: str, **kwargs) -> dict:
+def _make_request(method: str, url: str, headers: Optional[dict] = None, **kwargs) -> dict:
     """在独立线程中执行 HTTP 请求"""
     try:
         logger.info(f"🌐 [HTTP Worker] {method} {url}")
-        response = requests.request(method, url, timeout=30.0, **kwargs)
+        response = requests.request(method, url, timeout=30.0, headers=headers, **kwargs)
         response.raise_for_status()
         result = response.json()
         logger.info(f"🌐 [HTTP Worker] {method} {url} -> {response.status_code}")
@@ -51,12 +51,12 @@ class APIClient:
         """构建完整 URL"""
         return f"{self.base_url}{path}"
 
-    def _execute(self, method: str, path: str, **kwargs) -> dict:
+    def _execute(self, method: str, path: str, headers: Optional[dict] = None, **kwargs) -> dict:
         """执行 HTTP 请求（通过线程池）"""
         url = self._build_url(path)
         logger.info(f"🌐 [HTTP] 提交请求: {method} {path}")
 
-        future = _http_executor.submit(_make_request, method, url, **kwargs)
+        future = _http_executor.submit(_make_request, method, url, headers=headers, **kwargs)
         result = future.result(timeout=35.0)
 
         if not result["success"]:
@@ -64,21 +64,21 @@ class APIClient:
 
         return result["data"]
 
-    def get(self, path: str, params: Optional[dict] = None) -> dict:
+    def get(self, path: str, params: Optional[dict] = None, headers: Optional[dict] = None) -> dict:
         """发送 GET 请求"""
-        return self._execute("GET", path, params=params)
+        return self._execute("GET", path, headers=headers, params=params)
 
-    def post(self, path: str, json: Optional[dict] = None) -> dict:
+    def post(self, path: str, json: Optional[dict] = None, headers: Optional[dict] = None) -> dict:
         """发送 POST 请求"""
-        return self._execute("POST", path, json=json)
+        return self._execute("POST", path, headers=headers, json=json)
 
-    def put(self, path: str, json: Optional[dict] = None) -> dict:
+    def put(self, path: str, json: Optional[dict] = None, headers: Optional[dict] = None) -> dict:
         """发送 PUT 请求"""
-        return self._execute("PUT", path, json=json)
+        return self._execute("PUT", path, headers=headers, json=json)
 
-    def delete(self, path: str) -> dict:
+    def delete(self, path: str, headers: Optional[dict] = None) -> dict:
         """发送 DELETE 请求"""
-        return self._execute("DELETE", path)
+        return self._execute("DELETE", path, headers=headers)
 
 
 # ==================== 咖啡店 API 客户端 ====================

@@ -1,5 +1,6 @@
 """
-咖啡相关工具 - 通过 HTTP 接口调用后端服务
+咖啡相关工具 - 多门店版，通过 HTTP 接口调用后端服务
+所有函数接受 store_id 参数，由 Agent wrapper 从 session state 注入。
 """
 import re
 import time
@@ -7,22 +8,22 @@ from typing import Any, Dict, List, Optional
 from shared.http_client import get_coffee_api_client
 import logging
 
-# 设置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 商品缓存，减少重复的菜单请求
-_PRODUCT_CACHE: Dict[str, Any] = {"expires_at": 0.0, "items": []}
-_PRODUCT_CACHE_TTL = 60  # 秒
+_PRODUCT_CACHE: Dict[str, Dict[str, Any]] = {}
+_PRODUCT_CACHE_TTL = 60
+
+
+def _store_headers(store_id: str) -> dict:
+    return {"X-Store-Id": store_id}
 
 
 def _normalize_text(value: str) -> str:
-    """统一商品名称格式用于匹配"""
     return re.sub(r"\s+", "", value).lower()
 
 
 def _safe_int(value: Any, default: Optional[int] = None) -> Optional[int]:
-    """尽量将值解析为整数"""
     if value is None:
         return default
     if isinstance(value, bool):
@@ -43,7 +44,6 @@ def _safe_int(value: Any, default: Optional[int] = None) -> Optional[int]:
 
 
 def _parse_price(value: Any) -> Optional[float]:
-    """将价格解析为 float"""
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -59,7 +59,6 @@ def _parse_price(value: Any) -> Optional[float]:
 
 
 def _extract_name_and_quantity(raw: str) -> tuple[str, int]:
-    """尝试从字符串中拆分名称和数量"""
     text = raw.strip()
     quantity = 1
 
@@ -74,20 +73,23 @@ def _extract_name_and_quantity(raw: str) -> tuple[str, int]:
     return text, quantity
 
 
-def _get_product_catalog() -> List[Dict[str, Any]]:
-    """获取菜单缓存"""
+def _get_product_catalog(store_id: str) -> List[Dict[str, Any]]:
+    """获取门店菜单缓存（per-store）"""
     now = time.time()
-    if now >= _PRODUCT_CACHE["expires_at"]:
+    cache = _PRODUCT_CACHE.get(store_id, {"expires_at": 0.0, "items": []})
+    if now >= cache["expires_at"]:
         client = get_coffee_api_client()
-        logger.info("🔧 [TOOL] 刷新商品缓存")
-        response = client.get("/api/coffee/products")
-        _PRODUCT_CACHE["items"] = response.get("data", [])
-        _PRODUCT_CACHE["expires_at"] = now + _PRODUCT_CACHE_TTL
-    return _PRODUCT_CACHE["items"]
+        logger.info(f"🔧 [TOOL] 刷新门店 {store_id} 商品缓存")
+        response = client.get("/api/coffee/products", headers=_store_headers(store_id))
+        cache = {
+            "items": response.get("data", []),
+            "expires_at": now + _PRODUCT_CACHE_TTL,
+        }
+        _PRODUCT_CACHE[store_id] = cache
+    return cache["items"]
 
 
 def _find_product_by_name(name: str, catalog: List[Dict[str, Any]]):
-    """根据名称或别名匹配商品"""
     normalized = _normalize_text(name)
     for product in catalog:
         if _normalize_text(product["name"]) == normalized:
@@ -98,12 +100,12 @@ def _find_product_by_name(name: str, catalog: List[Dict[str, Any]]):
     return None
 
 
-def _normalize_order_items(items: list) -> List[Dict[str, Any]]:
-    """清洗并补全订单项数据，避免后端校验失败"""
+def _normalize_order_items(store_id: str, items: list) -> List[Dict[str, Any]]:
+    """清洗并补全订单项数据"""
     if not isinstance(items, list) or len(items) == 0:
         raise ValueError("订单至少需要包含一件商品。")
 
-    catalog = _get_product_catalog()
+    catalog = _get_product_catalog(store_id)
     normalized_items: List[Dict[str, Any]] = []
 
     for raw_item in items:
@@ -148,7 +150,7 @@ def _normalize_order_items(items: list) -> List[Dict[str, Any]]:
                 name = matched_product["name"]
 
         if not matched_product:
-            raise ValueError(f"未找到商品“{name or product_id}”，请重新选择菜单中的商品。")
+            raise ValueError(f"未找到商品 {name or product_id}，请重新选择菜单中的商品。")
 
         if price_value is None:
             price_value = matched_product["price"]
@@ -167,29 +169,25 @@ def _normalize_order_items(items: list) -> List[Dict[str, Any]]:
     return normalized_items
 
 
-def get_menu(category: Optional[str] = None) -> dict:
+# ==================== 公开工具函数 ====================
+
+
+def get_menu(store_id: str, category: Optional[str] = None) -> dict:
     """
-    获取希希咖啡店菜单
-    
-    通过 HTTP 调用: GET /api/coffee/products
+    获取门店菜单
 
     Args:
-        category: 商品分类（经典咖啡/特调饮品/甜点），不指定则返回全部
-
-    Returns:
-        菜单信息
+        store_id: 门店ID
+        category: 商品分类
     """
-    logger.info(f"🔧 [TOOL] get_menu 被调用, category={category}")
+    logger.info(f"🔧 [TOOL] get_menu 被调用, store_id={store_id}, category={category}")
     client = get_coffee_api_client()
     params = {"category": category} if category else None
-    
+
     try:
-        logger.info(f"🔧 [TOOL] 正在调用 HTTP: GET /api/coffee/products")
-        response = client.get("/api/coffee/products", params=params)
-        logger.info(f"🔧 [TOOL] HTTP 响应成功")
+        response = client.get("/api/coffee/products", params=params, headers=_store_headers(store_id))
         products = response.get("data", [])
-        
-        # 按分类整理
+
         menu_by_category = {}
         for product in products:
             cat = product["category"]
@@ -209,43 +207,34 @@ def get_menu(category: Optional[str] = None) -> dict:
             "success": True,
             "menu": menu_by_category,
             "total_items": len(products),
-            "message": "这是希希咖啡店的菜单，请问您想点什么？",
+            "message": "这是本店的菜单，请问您想点什么？",
         }
     except Exception as e:
         logger.error(f"🔧 [TOOL] get_menu 失败: {str(e)}")
-        return {
-            "success": False,
-            "menu": {},
-            "message": f"获取菜单失败: {str(e)}",
-        }
+        return {"success": False, "menu": {}, "message": f"获取菜单失败: {str(e)}"}
 
 
-def search_product(keyword: str) -> dict:
+def search_product(store_id: str, keyword: str) -> dict:
     """
-    搜索商品
-    
-    通过 HTTP 调用: GET /api/coffee/products 并过滤
+    搜索门店商品
 
     Args:
+        store_id: 门店ID
         keyword: 搜索关键词
-
-    Returns:
-        搜索结果
     """
     client = get_coffee_api_client()
-    
+
     try:
-        response = client.get("/api/coffee/products")
+        response = client.get("/api/coffee/products", headers=_store_headers(store_id))
         products = response.get("data", [])
-        
-        # 在客户端进行关键词匹配
+
         keyword_lower = keyword.lower()
         matched = None
         for product in products:
             if keyword_lower in product["name"].lower() or keyword_lower in product.get("description", "").lower():
                 matched = product
                 break
-        
+
         if matched:
             return {
                 "success": True,
@@ -265,14 +254,11 @@ def search_product(keyword: str) -> dict:
                 "message": f"抱歉，没有找到与 '{keyword}' 相关的商品",
             }
     except Exception as e:
-        return {
-            "success": False,
-            "product": None,
-            "message": f"搜索商品失败: {str(e)}",
-        }
+        return {"success": False, "product": None, "message": f"搜索商品失败: {str(e)}"}
 
 
 def create_coffee_order(
+    store_id: str,
     items: list[dict],
     customer_name: str,
     customer_phone: str,
@@ -281,23 +267,19 @@ def create_coffee_order(
 ) -> dict:
     """
     创建咖啡订单
-    
-    通过 HTTP 调用: POST /api/coffee/orders
 
     Args:
-        items: 订单项列表，每项包含 product_id, name, price, quantity
+        store_id: 门店ID
+        items: 订单项列表
         customer_name: 顾客姓名
         customer_phone: 顾客电话
-        customer_address: 配送地址（可选，如果需要配送）
+        customer_address: 配送地址
         notes: 备注
-
-    Returns:
-        订单信息
     """
     client = get_coffee_api_client()
-    
+
     try:
-        normalized_items = _normalize_order_items(items)
+        normalized_items = _normalize_order_items(store_id, items)
         logger.info(f"🔧 [TOOL] create_coffee_order 规范化订单项: {normalized_items}")
 
         response = client.post(
@@ -309,11 +291,10 @@ def create_coffee_order(
                 "customer_address": customer_address,
                 "notes": notes,
             },
+            headers=_store_headers(store_id),
         )
-        
+
         order = response.get("data", {})
-        
-        # 格式化订单项
         items_text = "、".join(
             [f"{item['name']}x{item['quantity']}" for item in normalized_items]
         )
@@ -324,31 +305,23 @@ def create_coffee_order(
             "message": f"订单创建成功！\n订单号：{order.get('id')}\n商品：{items_text}\n总计：¥{order.get('total')}\n状态：待制作",
         }
     except Exception as e:
-        return {
-            "success": False,
-            "order": None,
-            "message": f"创建订单失败: {str(e)}",
-        }
+        return {"success": False, "order": None, "message": f"创建订单失败: {str(e)}"}
 
 
-def query_order(order_id: int) -> dict:
+def query_order(store_id: str, order_id: int) -> dict:
     """
     查询订单状态
-    
-    通过 HTTP 调用: GET /api/coffee/orders/{order_id}
 
     Args:
+        store_id: 门店ID
         order_id: 订单号
-
-    Returns:
-        订单信息
     """
     client = get_coffee_api_client()
-    
+
     try:
-        response = client.get(f"/api/coffee/orders/{order_id}")
+        response = client.get(f"/api/coffee/orders/{order_id}", headers=_store_headers(store_id))
         order = response.get("data")
-        
+
         if not order:
             return {
                 "success": False,
@@ -356,7 +329,6 @@ def query_order(order_id: int) -> dict:
                 "message": f"抱歉，未找到订单号为 {order_id} 的订单",
             }
 
-        # 状态映射
         status_map = {
             "pending": "待制作",
             "preparing": "制作中",
@@ -377,38 +349,27 @@ def query_order(order_id: int) -> dict:
             "message": f"订单 {order_id} 信息：\n商品：{items_text}\n总计：¥{order['total']}\n状态：{status_text}\n下单时间：{order['created_at']}",
         }
     except Exception as e:
-        return {
-            "success": False,
-            "order": None,
-            "message": f"查询订单失败: {str(e)}",
-        }
+        return {"success": False, "order": None, "message": f"查询订单失败: {str(e)}"}
 
 
-def get_recent_orders(limit: int = 5) -> dict:
+def get_recent_orders(store_id: str, limit: int = 5) -> dict:
     """
-    获取最近的订单
-    
-    通过 HTTP 调用: GET /api/coffee/orders?limit={limit}
+    获取门店最近订单
 
     Args:
+        store_id: 门店ID
         limit: 返回数量
-
-    Returns:
-        订单列表
     """
-    logger.info(f"🔧 [TOOL] get_recent_orders 被调用, limit={limit}")
+    logger.info(f"🔧 [TOOL] get_recent_orders 被调用, store_id={store_id}, limit={limit}")
     client = get_coffee_api_client()
-    
+
     try:
-        logger.info(f"🔧 [TOOL] 正在调用 HTTP: GET /api/coffee/orders?limit={limit}")
-        response = client.get("/api/coffee/orders", params={"limit": limit})
-        logger.info(f"🔧 [TOOL] HTTP 响应成功")
+        response = client.get("/api/coffee/orders", params={"limit": limit}, headers=_store_headers(store_id))
         orders = response.get("data", [])
 
         if not orders:
             return {"success": True, "orders": [], "message": "暂无订单记录"}
 
-        # 简化订单信息
         simple_orders = []
         for order in orders:
             items_text = "、".join(
@@ -430,30 +391,26 @@ def get_recent_orders(limit: int = 5) -> dict:
             "message": f"最近 {len(orders)} 个订单",
         }
     except Exception as e:
-        return {
-            "success": False,
-            "orders": [],
-            "message": f"获取订单列表失败: {str(e)}",
-        }
+        return {"success": False, "orders": [], "message": f"获取订单列表失败: {str(e)}"}
 
 
-def update_order_status(order_id: int, status: str) -> dict:
+def update_order_status(store_id: str, order_id: int, status: str) -> dict:
     """
     更新订单状态
-    
-    通过 HTTP 调用: PUT /api/coffee/orders/{order_id}/status
 
     Args:
+        store_id: 门店ID
         order_id: 订单号
         status: 新状态
-
-    Returns:
-        更新结果
     """
     client = get_coffee_api_client()
-    
+
     try:
-        response = client.put(f"/api/coffee/orders/{order_id}/status", json={"status": status})
+        response = client.put(
+            f"/api/coffee/orders/{order_id}/status",
+            json={"status": status},
+            headers=_store_headers(store_id),
+        )
         order = response.get("data")
 
         if not order:
@@ -474,8 +431,28 @@ def update_order_status(order_id: int, status: str) -> dict:
             "message": f"订单 {order_id} 状态已更新为：{status_map.get(status, status)}",
         }
     except Exception as e:
+        return {"success": False, "order": None, "message": f"更新订单状态失败: {str(e)}"}
+
+
+def get_store_info(store_id: str) -> dict:
+    """
+    获取门店详情
+
+    Args:
+        store_id: 门店ID
+    """
+    client = get_coffee_api_client()
+
+    try:
+        response = client.get(f"/api/coffee/stores/{store_id}")
+        store = response.get("data")
+        if not store:
+            return {"success": False, "message": f"门店 {store_id} 不存在"}
         return {
-            "success": False,
-            "order": None,
-            "message": f"更新订单状态失败: {str(e)}",
+            "success": True,
+            "store": store,
+            "display_name": f"{store['name']}（{store['address']}）",
+            "message": f"门店信息：{store['name']}（{store['address']}），营业时间 {store.get('business_hours', '')}",
         }
+    except Exception as e:
+        return {"success": False, "message": f"获取门店信息失败: {str(e)}"}

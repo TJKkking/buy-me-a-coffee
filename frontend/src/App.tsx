@@ -3,10 +3,9 @@ import { CopilotKit } from '@copilotkit/react-core';
 import '@copilotkit/react-ui/styles.css';
 import PhoneSimulator from './components/PhoneSimulator';
 import AdminPanel from './components/AdminPanel';
-import { Coffee, Truck, X, Bot } from 'lucide-react';
+import { Coffee, Truck, X, Bot, MapPin, ChevronDown } from 'lucide-react';
 import { ENDPOINT } from './utils/config';
 
-// Agent Card 类型
 interface AgentCard {
   name: string;
   description: string;
@@ -23,7 +22,6 @@ interface AgentCard {
   defaultOutputModes?: string[];
 }
 
-// Agent 信息类型（从 /api/agents 返回）
 interface AgentInfo {
   name: string;
   description: string;
@@ -33,7 +31,15 @@ interface AgentInfo {
   error?: string;
 }
 
-// 根据 Agent 名称获取图标组件
+interface StoreInfo {
+  store_id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  business_hours?: string;
+  status?: string;
+}
+
 function getAgentIcon(name: string) {
   const nameLower = name.toLowerCase();
   if (nameLower.includes('coffee') || nameLower.includes('咖啡')) {
@@ -44,7 +50,6 @@ function getAgentIcon(name: string) {
   return <Bot className='w-5 h-5 text-white' />;
 }
 
-// 根据 Agent 名称获取颜色
 function getAgentColor(name: string) {
   const nameLower = name.toLowerCase();
   if (nameLower.includes('coffee') || nameLower.includes('咖啡')) {
@@ -70,7 +75,6 @@ function getAgentColor(name: string) {
   };
 }
 
-// 获取 Agent 显示名称
 function getAgentDisplayName(name: string) {
   const nameLower = name.toLowerCase();
   if (nameLower.includes('coffee') || nameLower.includes('咖啡')) {
@@ -81,7 +85,6 @@ function getAgentDisplayName(name: string) {
   return name;
 }
 
-// Agent Card 弹窗组件
 function AgentCardModal({
   agent,
   onClose,
@@ -102,7 +105,6 @@ function AgentCardModal({
         className='bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden border border-slate-700'
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 标题栏 */}
         <div
           className={`px-6 py-4 border-b border-slate-700 flex items-center justify-between ${color.bg}`}
         >
@@ -123,7 +125,6 @@ function AgentCardModal({
           </button>
         </div>
 
-        {/* 内容 */}
         <div className='p-6 overflow-y-auto max-h-[60vh]'>
           {agent.error ? (
             <div className='bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400'>
@@ -133,7 +134,6 @@ function AgentCardModal({
             </div>
           ) : agentCard ? (
             <div className='space-y-4'>
-              {/* 基本信息 */}
               <div>
                 <h3 className='text-slate-400 text-xs uppercase tracking-wider mb-2'>
                   基本信息
@@ -166,7 +166,6 @@ function AgentCardModal({
                 </div>
               </div>
 
-              {/* 输入输出模式 */}
               <div>
                 <h3 className='text-slate-400 text-xs uppercase tracking-wider mb-2'>
                   支持的模式
@@ -201,7 +200,6 @@ function AgentCardModal({
                 </div>
               </div>
 
-              {/* Skills */}
               {agentCard.skills && agentCard.skills.length > 0 && (
                 <div>
                   <h3 className='text-slate-400 text-xs uppercase tracking-wider mb-2'>
@@ -250,7 +248,32 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState<AgentInfo | null>(null);
   const [agentsLoading, setAgentsLoading] = useState(true);
 
-  // 从 /api/agents 获取 Agent 列表
+  const [stores, setStores] = useState<StoreInfo[]>([]);
+  const [currentStoreId, setCurrentStoreId] = useState<string>('store_001');
+  const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+
+  const currentStore = useMemo(
+    () => stores.find((s) => s.store_id === currentStoreId),
+    [stores, currentStoreId]
+  );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch(`${ENDPOINT}/api/stores`);
+        const data = await resp.json();
+        if (data.success && data.data) {
+          setStores(data.data);
+          if (data.data.length > 0) {
+            setCurrentStoreId(data.data[0].store_id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch stores:', err);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     setAgentsLoading(true);
 
@@ -263,10 +286,9 @@ function App() {
             setAgents(data.agents);
           }
 
-          if (data.agents.length >= 2) {
-            setAgentsLoading(false);
-            break;
-          }
+          // In local sub-agent mode, there may be 0 A2A agents - that's fine
+          setAgentsLoading(false);
+          break;
         } catch (err) {
           console.error('Failed to fetch agents:', err);
         }
@@ -280,20 +302,23 @@ function App() {
     setRefreshKey((k) => k + 1);
   };
 
+  const handleStoreChange = (storeId: string) => {
+    setCurrentStoreId(storeId);
+    setStoreDropdownOpen(false);
+    setRefreshKey((k) => k + 1);
+  };
+
   const [adminLoading, setAdminLoading] = useState(true);
 
   const isReady = useMemo(() => {
-    console.log(agentsLoading, agents.length, adminLoading);
-    return !agentsLoading && agents.length >= 2 && !adminLoading;
-  }, [agentsLoading, adminLoading, agents]);
+    return !agentsLoading && !adminLoading;
+  }, [agentsLoading, adminLoading]);
 
-  return (
-    <CopilotKit runtimeUrl={`${ENDPOINT}/api/copilotkit`}>
+  const appContent = (
       <div className='h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'>
-        {/* 顶部标题栏 - 简化版 */}
+        {/* 顶部标题栏 */}
         <header className='relative z-10 px-8 py-4 bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-sm border-b border-slate-700/50'>
           <div className='flex items-center justify-between max-w-[1800px] mx-auto'>
-            {/* Logo */}
             <div className='flex items-center gap-4'>
               <div className='relative'>
                 <div className='w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20'>
@@ -308,7 +333,9 @@ function App() {
               </div>
               <div>
                 <h1 className='text-2xl font-bold text-white tracking-tight'>
-                  希希咖啡店
+                  {currentStore
+                    ? `${currentStore.name}（${currentStore.address}）`
+                    : '希希咖啡店'}
                 </h1>
                 <p className='text-slate-400 text-sm'>
                   多 Agent 咖啡点单与配送系统
@@ -316,10 +343,79 @@ function App() {
               </div>
             </div>
 
-            {/* 右侧留空或放其他内容 */}
-            <div className='text-slate-400 text-sm'>
-              Powered by <b>AgentRun</b> + Google ADK + A2A Protocol + AGUI +
-              CopliotKit
+            {/* 门店选择器 */}
+            <div className='flex items-center gap-4'>
+              {stores.length > 0 && (
+                <div className='relative'>
+                  <button
+                    onClick={() => setStoreDropdownOpen(!storeDropdownOpen)}
+                    className='flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 transition-colors'
+                  >
+                    <MapPin className='w-4 h-4' />
+                    <span className='text-sm font-medium'>
+                      {currentStore
+                        ? `${currentStore.address}`
+                        : '选择门店'}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${
+                        storeDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {storeDropdownOpen && (
+                    <>
+                      <div
+                        className='fixed inset-0 z-40'
+                        onClick={() => setStoreDropdownOpen(false)}
+                      />
+                      <div className='absolute right-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden'>
+                        <div className='px-4 py-2 border-b border-slate-700'>
+                          <p className='text-slate-400 text-xs font-medium'>
+                            切换门店
+                          </p>
+                        </div>
+                        {stores.map((store) => (
+                          <button
+                            key={store.store_id}
+                            onClick={() => handleStoreChange(store.store_id)}
+                            className={`w-full text-left px-4 py-3 hover:bg-slate-700/50 transition-colors flex items-start gap-3 ${
+                              store.store_id === currentStoreId
+                                ? 'bg-amber-500/10'
+                                : ''
+                            }`}
+                          >
+                            <MapPin
+                              className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                                store.store_id === currentStoreId
+                                  ? 'text-amber-400'
+                                  : 'text-slate-500'
+                              }`}
+                            />
+                            <div>
+                              <p
+                                className={`text-sm font-medium ${
+                                  store.store_id === currentStoreId
+                                    ? 'text-amber-400'
+                                    : 'text-white'
+                                }`}
+                              >
+                                {store.name}（{store.address}）
+                              </p>
+                              <p className='text-xs text-slate-500 mt-0.5'>
+                                {store.business_hours} · {store.phone}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className='text-slate-400 text-sm'>
+                Powered by <b>AgentRun</b> + Google ADK + A2A Protocol
+              </div>
             </div>
           </div>
         </header>
@@ -328,51 +424,46 @@ function App() {
         <main className='flex-1 flex overflow-hidden'>
           {/* 左侧 - 顾客端（手机模拟器） */}
           <div className='flex-1 flex flex-col items-center justify-center p-4 lg:p-8 relative'>
-            {/* 背景装饰 */}
             <div className='absolute inset-0 overflow-hidden pointer-events-none'>
               <div className='absolute top-20 left-20 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl' />
               <div className='absolute bottom-20 right-20 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl' />
             </div>
 
-            {/* 标签 */}
             <div className='mb-4 flex items-center gap-3'>
               <div className='w-3 h-3 rounded-full bg-amber-400 animate-pulse' />
               <h2 className='text-lg font-semibold text-white'>顾客端</h2>
               <span className='text-slate-400 text-sm'>· 手机 App 模拟</span>
             </div>
 
-            {/* 手机模拟器 */}
             <div className='relative z-10'>
               <PhoneSimulator
                 onOrderCreated={handleOrderCreated}
                 isReady={isReady}
+                storeId={currentStoreId}
               />
             </div>
 
-            {/* 提示文字 */}
             <p className='mt-4 text-slate-500 text-sm text-center max-w-xs'>
-              💡 试试说「我要一杯拿铁」或「帮我查一下订单」
+              试试说「我要一杯拿铁」或「帮我查一下订单」
             </p>
           </div>
 
-          {/* 中间分隔线 */}
           <div className='w-px bg-gradient-to-b from-transparent via-slate-600 to-transparent' />
 
           {/* 右侧 - 商家后台 */}
           <div className='w-[500px] xl:w-[580px] flex flex-col'>
-            {/* 标签 */}
             <div className='px-6 py-4 flex items-center gap-3 border-b border-slate-700/50'>
               <div className='w-3 h-3 rounded-full bg-green-400 animate-pulse' />
               <h2 className='text-lg font-semibold text-white'>商家后台</h2>
               <span className='text-slate-400 text-sm'>· 订单管理系统</span>
             </div>
 
-            {/* 后台面板 */}
             <div className='flex-1 overflow-hidden'>
               <AdminPanel
                 setAdminLoading={setAdminLoading}
                 refreshTrigger={refreshKey}
                 onRefresh={() => setRefreshKey((k) => k + 1)}
+                storeId={currentStoreId}
               />
             </div>
           </div>
@@ -386,14 +477,13 @@ function App() {
                 <div className='w-2 h-2 rounded-full bg-green-400 animate-pulse' />
                 <span className='text-slate-400 text-sm'>
                   {agentsLoading
-                    ? '正在加载 A2A 服务...'
+                    ? '正在加载服务...'
                     : agents.length > 0
                     ? `${agents.length} 个 A2A 服务运行中`
-                    : '无 A2A 服务'}
+                    : '本地 Agent 模式'}
                 </span>
               </div>
 
-              {/* 动态渲染 Agent 按钮 */}
               {agents.map((agent, idx) => {
                 const color = getAgentColor(agent.name);
                 const displayName = getAgentDisplayName(agent.name);
@@ -416,7 +506,6 @@ function App() {
           </div>
         </footer>
 
-        {/* Agent Card 弹窗 */}
         {selectedAgent && (
           <AgentCardModal
             agent={selectedAgent}
@@ -424,6 +513,15 @@ function App() {
           />
         )}
       </div>
+  );
+
+  if (!ENDPOINT) {
+    return appContent;
+  }
+
+  return (
+    <CopilotKit runtimeUrl={`${ENDPOINT}/api/copilotkit`}>
+      {appContent}
     </CopilotKit>
   );
 }

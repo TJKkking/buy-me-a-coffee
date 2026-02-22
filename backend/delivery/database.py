@@ -1,5 +1,5 @@
 """
-送了么配送数据库
+送了么配送数据库 - 多门店版
 """
 import aiosqlite
 from datetime import datetime
@@ -11,14 +11,12 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from shared.database import DATA_DIR
 
-# 数据库路径
 DELIVERY_DB_PATH = DATA_DIR / "delivery.db"
 
 
 class DeliveryDatabase:
-    """送了么配送数据库管理"""
+    """送了么配送数据库管理（多门店）"""
 
-    # 模拟骑手列表
     DRIVERS = [
         {"name": "张师傅", "phone": "138****1234"},
         {"name": "李师傅", "phone": "139****5678"},
@@ -36,6 +34,7 @@ class DeliveryDatabase:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS deliveries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    store_id TEXT NOT NULL DEFAULT 'default',
                     order_id INTEGER NOT NULL,
                     order_source TEXT DEFAULT 'xixi_coffee',
                     pickup_address TEXT NOT NULL,
@@ -57,6 +56,7 @@ class DeliveryDatabase:
 
     async def create_delivery(
         self,
+        store_id: str,
         order_id: int,
         pickup_address: str,
         delivery_address: str,
@@ -66,21 +66,19 @@ class DeliveryDatabase:
     ) -> dict:
         """创建配送订单"""
         now = datetime.now().isoformat()
-
-        # 随机分配骑手
         driver = random.choice(self.DRIVERS)
-        # 预估配送时间 20-45 分钟
         estimated_time = random.randint(20, 45)
 
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
                 INSERT INTO deliveries 
-                (order_id, pickup_address, delivery_address, customer_name, customer_phone, 
+                (store_id, order_id, pickup_address, delivery_address, customer_name, customer_phone, 
                  status, driver_name, driver_phone, estimated_time, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    store_id,
                     order_id,
                     pickup_address,
                     delivery_address,
@@ -100,6 +98,7 @@ class DeliveryDatabase:
 
             return {
                 "id": delivery_id,
+                "store_id": store_id,
                 "order_id": order_id,
                 "pickup_address": pickup_address,
                 "delivery_address": delivery_address,
@@ -114,76 +113,89 @@ class DeliveryDatabase:
                 "updated_at": now,
             }
 
-    async def get_delivery(self, delivery_id: int) -> Optional[dict]:
+    async def get_delivery(self, delivery_id: int, store_id: Optional[str] = None) -> Optional[dict]:
         """获取配送详情"""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM deliveries WHERE id = ?", (delivery_id,)
-            )
+            if store_id:
+                cursor = await db.execute(
+                    "SELECT * FROM deliveries WHERE id = ? AND store_id = ?",
+                    (delivery_id, store_id),
+                )
+            else:
+                cursor = await db.execute(
+                    "SELECT * FROM deliveries WHERE id = ?", (delivery_id,)
+                )
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-    async def get_delivery_by_order(self, order_id: int) -> Optional[dict]:
+    async def get_delivery_by_order(self, order_id: int, store_id: Optional[str] = None) -> Optional[dict]:
         """根据订单 ID 获取配送信息"""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM deliveries WHERE order_id = ? ORDER BY created_at DESC LIMIT 1",
-                (order_id,),
-            )
+            if store_id:
+                cursor = await db.execute(
+                    "SELECT * FROM deliveries WHERE order_id = ? AND store_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (order_id, store_id),
+                )
+            else:
+                cursor = await db.execute(
+                    "SELECT * FROM deliveries WHERE order_id = ? ORDER BY created_at DESC LIMIT 1",
+                    (order_id,),
+                )
             row = await cursor.fetchone()
             return dict(row) if row else None
 
     async def get_deliveries(
-        self, status: Optional[str] = None, limit: int = 50
+        self, store_id: str, status: Optional[str] = None, limit: int = 50
     ) -> list[dict]:
-        """获取配送列表"""
+        """获取门店配送列表"""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-
             if status:
                 cursor = await db.execute(
-                    "SELECT * FROM deliveries WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-                    (status, limit),
+                    "SELECT * FROM deliveries WHERE store_id = ? AND status = ? ORDER BY created_at DESC LIMIT ?",
+                    (store_id, status, limit),
                 )
             else:
                 cursor = await db.execute(
-                    "SELECT * FROM deliveries ORDER BY created_at DESC LIMIT ?",
-                    (limit,),
+                    "SELECT * FROM deliveries WHERE store_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (store_id, limit),
                 )
-
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
     async def update_delivery_status(
-        self, delivery_id: int, status: str
+        self, delivery_id: int, status: str, store_id: Optional[str] = None
     ) -> Optional[dict]:
         """更新配送状态"""
         now = datetime.now().isoformat()
-
         async with aiosqlite.connect(self.db_path) as db:
+            where = "id = ?"
+            params_base = [delivery_id]
+            if store_id:
+                where += " AND store_id = ?"
+                params_base.append(store_id)
+
             if status == "picked":
                 await db.execute(
-                    "UPDATE deliveries SET status = ?, picked_at = ?, updated_at = ? WHERE id = ?",
-                    (status, now, now, delivery_id),
+                    f"UPDATE deliveries SET status = ?, picked_at = ?, updated_at = ? WHERE {where}",
+                    [status, now, now] + params_base,
                 )
             elif status == "delivered":
                 await db.execute(
-                    "UPDATE deliveries SET status = ?, delivered_at = ?, updated_at = ? WHERE id = ?",
-                    (status, now, now, delivery_id),
+                    f"UPDATE deliveries SET status = ?, delivered_at = ?, updated_at = ? WHERE {where}",
+                    [status, now, now] + params_base,
                 )
             else:
                 await db.execute(
-                    "UPDATE deliveries SET status = ?, updated_at = ? WHERE id = ?",
-                    (status, now, delivery_id),
+                    f"UPDATE deliveries SET status = ?, updated_at = ? WHERE {where}",
+                    [status, now] + params_base,
                 )
-
             await db.commit()
-            return await self.get_delivery(delivery_id)
+            return await self.get_delivery(delivery_id, store_id)
 
 
-# 配送状态说明
 DELIVERY_STATUS = {
     "pending": "待分配",
     "assigned": "已分配骑手",
@@ -193,6 +205,4 @@ DELIVERY_STATUS = {
     "cancelled": "已取消",
 }
 
-# 全局数据库实例
 delivery_db = DeliveryDatabase()
-

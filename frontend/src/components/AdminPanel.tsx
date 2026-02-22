@@ -58,6 +58,7 @@ interface AdminPanelProps {
   refreshTrigger: number;
   onRefresh?: () => void;
   setAdminLoading: (loading: boolean) => void;
+  storeId: string;
 }
 
 // 咖啡订单状态配置
@@ -178,6 +179,7 @@ export default function AdminPanel({
   refreshTrigger,
   onRefresh,
   setAdminLoading,
+  storeId,
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'coffee' | 'delivery'>('coffee');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -190,20 +192,20 @@ export default function AdminPanel({
   );
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
+  const storeHeaders = { 'X-Store-Id': storeId };
+
   const fetchData = async () => {
     try {
       const [ordersRes, deliveriesRes] = await Promise.all([
-        fetch(`${ENDPOINT}/api/coffee/orders?limit=50`),
-        fetch(`${ENDPOINT}/api/delivery/deliveries?limit=50`),
+        fetch(`${ENDPOINT}/api/coffee/orders?limit=50`, { headers: storeHeaders }),
+        fetch(`${ENDPOINT}/api/delivery/deliveries?limit=50`, { headers: storeHeaders }),
       ]);
 
-      // 获取咖啡订单
       const ordersData = await ordersRes.json();
       if (ordersData.success) {
         setOrders(ordersData.data);
       }
 
-      // 获取配送订单
       const deliveriesData = await deliveriesRes.json();
       if (deliveriesData.success) {
         setDeliveries(deliveriesData.data);
@@ -236,7 +238,7 @@ export default function AdminPanel({
         `${ENDPOINT}/api/coffee/orders/${orderId}/status`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...storeHeaders },
           body: JSON.stringify({ status: newStatus }),
         }
       );
@@ -266,7 +268,7 @@ export default function AdminPanel({
         `${ENDPOINT}/api/delivery/deliveries/${deliveryId}/status`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...storeHeaders },
           body: JSON.stringify({ status: newStatus }),
         }
       );

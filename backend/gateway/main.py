@@ -56,7 +56,6 @@ APP_NAME = "gateway"
 USER_ID = "default_user"
 session_service = InMemorySessionService()
 
-
 _root_agent = None
 
 
@@ -92,10 +91,45 @@ def get_root_agent():
     return _root_agent
 
 
+async def _fetch_store_info(store_id: str) -> dict:
+    """通过 HTTP 调用获取门店信息"""
+    try:
+        client = await get_http_client()
+        response = await client.get(f"{COFFEE_API_URL}/api/coffee/stores/{store_id}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("data", {})
+    except Exception:
+        pass
+    return {"name": "希希咖啡店", "address": "", "store_id": store_id}
+
+
+async def _get_or_create_session(session_id: str, store_id: str):
+    """获取或创建带有门店信息的 session"""
+    session = await session_service.get_session(
+        app_name=APP_NAME, user_id=USER_ID, session_id=session_id
+    )
+    if session is None:
+        store_info = await _fetch_store_info(store_id)
+        name = store_info.get("name", "希希咖啡店")
+        address = store_info.get("address", "")
+        session = await session_service.create_session(
+            app_name=APP_NAME,
+            user_id=USER_ID,
+            session_id=session_id,
+            state={
+                "store_id": store_id,
+                "store_name": name,
+                "store_address": address,
+                "store_display_name": f"{name}（{address}）" if address else name,
+            },
+        )
+    return session
+
+
 def serialize_event(event) -> dict:
     """序列化 ADK 事件为可 JSON 化的字典"""
     result = {"type": type(event).__name__}
-
     for attr in dir(event):
         if attr.startswith("_"):
             continue
@@ -115,14 +149,12 @@ def serialize_event(event) -> dict:
                 result[attr] = str(value)
         except:
             pass
-
     return result
 
 
 async def lifespan(app: FastAPI):
     """应用生命周期"""
     global _root_agent
-
     _root_agent = create_root_agent(A2A_URLS)
 
     print(f"📡 API 转发配置:")
@@ -175,7 +207,6 @@ async def get_agents():
     for url in A2A_URLS:
         if not url or not url.strip():
             continue
-
         url = url.strip()
 
         # 尝试获取 Agent Card
@@ -190,15 +221,40 @@ async def get_agents():
                     "card": card,
                 }
             )
-
         except Exception:
             pass
+    return {"success": True, "agents": agents, "count": len(agents)}
 
-    return {
-        "success": True,
-        "agents": agents,
-        "count": len(agents),
-    }
+
+# ==================== 门店端点 ====================
+
+
+@app.get("/api/stores")
+async def get_stores():
+    """获取门店列表（转发到咖啡 API）"""
+    client = await get_http_client()
+    try:
+        response = await client.get(f"{COFFEE_API_URL}/api/coffee/stores")
+        return response.json()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"success": False, "error": f"获取门店列表失败: {str(e)}"},
+        )
+
+
+@app.get("/api/stores/{store_id}")
+async def get_store(store_id: str):
+    """获取门店详情（转发到咖啡 API）"""
+    client = await get_http_client()
+    try:
+        response = await client.get(f"{COFFEE_API_URL}/api/coffee/stores/{store_id}")
+        return response.json()
+    except Exception as e:
+        return JSONResponse(
+            status_code=502,
+            content={"success": False, "error": f"获取门店信息失败: {str(e)}"},
+        )
 
 
 def _get_agent_icon(name: str) -> str:
@@ -324,9 +380,13 @@ async def proxy_delivery_api(request: Request, path: str):
     return await proxy_request(request, DELIVERY_API_URL, f"/api/delivery/{path}")
 
 
+# ==================== 聊天接口 ====================
+
+
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, req: Request):
     """非流式聊天"""
+    store_id = req.headers.get("x-store-id", "store_001")
     session_id = request.session_id or str(uuid.uuid4())
 
     runner = Runner(
@@ -335,13 +395,7 @@ async def chat(request: ChatRequest):
         session_service=session_service,
     )
 
-    session = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-    )
-    if session is None:
-        session = await session_service.create_session(
-            app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-        )
+    await _get_or_create_session(session_id, store_id)
 
     message = types.Content(
         role="user",
@@ -367,8 +421,9 @@ async def chat(request: ChatRequest):
 
 
 @app.post("/api/chat/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, req: Request):
     """流式聊天（SSE）"""
+    store_id = req.headers.get("x-store-id", "store_001")
     session_id = request.session_id or str(uuid.uuid4())
 
     runner = Runner(
@@ -377,13 +432,7 @@ async def chat_stream(request: ChatRequest):
         session_service=session_service,
     )
 
-    session = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-    )
-    if session is None:
-        session = await session_service.create_session(
-            app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-        )
+    await _get_or_create_session(session_id, store_id)
 
     message = types.Content(
         role="user",
@@ -506,7 +555,7 @@ async def chat_stream(request: ChatRequest):
 
 
 @app.post("/api/copilotkit")
-async def copilotkit_chat(request: CopilotKitRequest):
+async def copilotkit_chat(request: CopilotKitRequest, req: Request):
     """CopilotKit 兼容接口"""
     user_message = ""
     for msg in reversed(request.messages):
@@ -520,6 +569,7 @@ async def copilotkit_chat(request: CopilotKitRequest):
             content={"error": "No user message found"},
         )
 
+    store_id = req.headers.get("x-store-id", "store_001")
     session_id = request.threadId or str(uuid.uuid4())
 
     runner = Runner(
@@ -528,13 +578,7 @@ async def copilotkit_chat(request: CopilotKitRequest):
         session_service=session_service,
     )
 
-    session = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-    )
-    if session is None:
-        session = await session_service.create_session(
-            app_name=APP_NAME, user_id=USER_ID, session_id=session_id
-        )
+    await _get_or_create_session(session_id, store_id)
 
     message = types.Content(
         role="user",

@@ -1,1 +1,1 @@
-export const ENDPOINT = 'c410d179b056797269a4a2188bdf8a48';
+export const ENDPOINT = import.meta.env.VITE_API_ENDPOINT || '';

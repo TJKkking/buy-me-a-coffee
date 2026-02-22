@@ -1,3 +1,7 @@
+# Makefile 所在目录（项目根目录），保证从任意位置调用 make 时路径正确
+ROOT := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+ROOT := $(patsubst %/,%,$(ROOT))
+
 ACCESS ?= ohyee
 DOCKER_IMAGE ?= "cap-demo-public-registry.cn-hangzhou.cr.aliyuncs.com/cap-app/agentrun-demo:buy-me-a-coffee-${shell date -u +'%y%m%d-%H%M%S'}" 
 LATEST_IMAGE ?= ${shell docker images | awk '/cn-hangzhou/ && /agentrun-demo/ &&/buy-me-a-coffee/ { printf "%s:%s\n", $$1, $$2 }'  | sed -n 1p}
@@ -10,15 +14,41 @@ help: ## 帮助文件
 
 .PHONY: setup-nodejs
 setup-nodejs:
-	cd frontend npm install --prefix frontend
+	cd $(ROOT)/frontend && npm install
 
 setup-python:
-	uv venv --clear
-	uv pip install -r backend/requirements.txt
+	cd $(ROOT)/backend && uv sync 2>/dev/null || (cd $(ROOT)/backend && uv venv --clear && uv pip install -r requirements.txt)
 
 .PHONY: setup
-setup: setup-nodejs setup-python ## 初始化开发环境
+setup: setup-nodejs setup-python ## 初始化开发环境（安装前后端依赖）
 
+.PHONY: dev
+dev: ## 一键启动本地开发环境（3 个后端服务 + 前端），Ctrl+C 停止所有服务
+	@echo "🚀 启动本地开发环境（统一部署模式）..."
+	@echo "   ☕ Coffee API    → http://localhost:8001"
+	@echo "   🛵 Delivery API  → http://localhost:8002"
+	@echo "   🌐 Gateway       → http://localhost:8000"
+	@echo "   💻 Frontend      → http://localhost:5173"
+	@echo ""
+	@trap 'echo ""; echo "🛑 正在停止所有服务..."; kill 0; exit 0' INT TERM; \
+	cd backend && uv run python -m coffee.main & \
+	cd backend && uv run python -m delivery.main & \
+	sleep 2 && cd backend && uv run python -m gateway.main & \
+	cd frontend && npm run dev & \
+	wait
+
+.PHONY: dev-backend
+dev-backend: ## 仅启动后端服务（Coffee API + Delivery API + Gateway）
+	@echo "🚀 启动后端服务..."
+	@trap 'echo ""; echo "🛑 正在停止所有服务..."; kill 0; exit 0' INT TERM; \
+	cd backend && uv run python -m coffee.main & \
+	cd backend && uv run python -m delivery.main & \
+	sleep 2 && cd backend && uv run python -m gateway.main & \
+	wait
+
+.PHONY: dev-frontend
+dev-frontend: ## 仅启动前端开发服务器（Vite，自动代理到 localhost:8000）
+	cd frontend && npm run dev
 
 frontend/dist/index.cjs: $(FRONTEND_SOURCES)
 	cd frontend && \
@@ -27,33 +57,37 @@ frontend/dist/index.cjs: $(FRONTEND_SOURCES)
 
 
 .PHONY: web
-web: frontend/dist/index.cjs ## 调试 - 启动 web 服务器
+web: frontend/dist/index.cjs ## 调试 - 启动 web 服务器（生产构建版）
 	@cd frontend/dist && \
 	ENDPOINT=http://localhost:8000 \
 	node index.cjs
 
 .PHONY: gateway-agent
-gateway-agent: ## 调试 - 启动主 Agent
-	A2A_URLS=http://localhost:8003,http://localhost:8004 \
+gateway-agent: ## 调试 - 单独启动 Gateway Agent（端口 8000）
 	COFFEE_API_URL=http://localhost:8001 \
 	DELIVERY_API_URL=http://localhost:8002 \
-	uv run -m backend.gateway.main
+	cd backend && uv run python -m gateway.main
 
 .PHONY: coffee-agent
-coffee-agent: ## 调试 - 启动 Coffee Agent
-	uv run -m backend.coffee.a2a
+coffee-agent: ## 调试 - 单独启动 Coffee A2A Agent（端口 8003，分布式模式用）
+	cd backend && uv run python -m coffee.a2a
 
 .PHONY: delivery-agent
-delivery-agent: ## 调试 - 启动 Delivery Agent
-	uv run -m backend.delivery.a2a
+delivery-agent: ## 调试 - 单独启动 Delivery A2A Agent（端口 8004，分布式模式用）
+	cd backend && uv run python -m delivery.a2a
 
 .PHONY: coffee-api
-coffee-api: ## 调试 - 启动 Coffee API 服务
-	uv run -m backend.coffee.main
+coffee-api: ## 调试 - 单独启动 Coffee API 服务（端口 8001）
+	cd backend && uv run python -m coffee.main
 
 .PHONY: delivery-api
-delivery-api: ## 调试 - 启动 Delivery API 服务
-	uv run -m backend.delivery.main
+delivery-api: ## 调试 - 单独启动 Delivery API 服务（端口 8002）
+	cd backend && uv run python -m delivery.main
+
+.PHONY: clean-db
+clean-db: ## 清理数据库文件（重新初始化 schema）
+	rm -f data/coffee.db data/delivery.db
+	@echo "✅ 数据库已清理，下次启动时会自动重建"
 
 
 s_test.yaml: s.yaml

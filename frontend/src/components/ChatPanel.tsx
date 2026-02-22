@@ -21,9 +21,10 @@ interface Message {
 
 interface ChatPanelProps {
   onOrderCreated?: () => void;
+  storeId?: string;
 }
 
-export default function ChatPanel({ onOrderCreated }: ChatPanelProps) {
+export default function ChatPanel({ onOrderCreated, storeId = 'store_001' }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -76,6 +77,7 @@ export default function ChatPanel({ onOrderCreated }: ChatPanelProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Store-Id': storeId,
         },
         body: JSON.stringify({
           message: userMessage.content,
