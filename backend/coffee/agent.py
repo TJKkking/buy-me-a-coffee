@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from config import COFFEE_TOOLSET, DEFAULT_LLM
+from config import DEFAULT_LLM
 
 # 导入 HTTP 工具（同步函数，直接使用）
 from . import tools
@@ -171,16 +171,12 @@ coffee_agent = Agent(
 
 核心原则：每次订单状态询问都要真实调用后端接口，结果作为权威来源并返回给用户；不得凭记忆或上下文推测状态。
 """,
-    tools=(
-        COFFEE_TOOLSET
-        if len(COFFEE_TOOLSET)
-        else [
-            tool_get_menu,
-            tool_search_product,
-            tool_create_order,
-            tool_query_order,
-            tool_get_recent_orders,
-            tool_update_order_status,
-        ]
-    ),
+    tools=[
+        tool_get_menu,
+        tool_search_product,
+        tool_create_order,
+        tool_query_order,
+        tool_get_recent_orders,
+        tool_update_order_status,
+    ],
 )

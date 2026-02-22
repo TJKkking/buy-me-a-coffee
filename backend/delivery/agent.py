@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from config import DEFAULT_LLM, DEVELIVERY_TOOLSET
+from config import DEFAULT_LLM
 
 # 导入 HTTP 工具（同步函数，直接使用）
 from . import tools
@@ -148,16 +148,12 @@ delivery_agent = Agent(
 
 **交互风格**：专业高效，使用中文，清晰告知配送进度
 """,
-    tools=(
-        DEVELIVERY_TOOLSET
-        if len(DEVELIVERY_TOOLSET)
-        else [
-            tool_create_delivery,
-            tool_query_delivery,
-            tool_query_delivery_by_order,
-            tool_update_delivery_status,
-            tool_get_active_deliveries,
-            tool_get_delivery_status_options,
-        ]
-    ),
+    tools=[
+        tool_create_delivery,
+        tool_query_delivery,
+        tool_query_delivery_by_order,
+        tool_update_delivery_status,
+        tool_get_active_deliveries,
+        tool_get_delivery_status_options,
+    ],
 )

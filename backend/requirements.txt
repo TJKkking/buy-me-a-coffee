@@ -16,7 +16,7 @@ httpx>=0.27.0
 requests>=2.31.0
 
 
-# agentrun-inner-test[google-adk]==0.0.14
-agentrun-sdk[google-adk]>=0.0.7
-alibabacloud_tea_openapi>=0.4.2
+# Google ADK + LiteLLM
+google-adk>=1.0.0
+litellm>=1.30.0
 a2a-sdk

@@ -41,12 +41,10 @@ gateway-agent: ## 调试 - 启动主 Agent
 
 .PHONY: coffee-agent
 coffee-agent: ## 调试 - 启动 Coffee Agent
-	COFFEE_TOOLSET_NAME=xixi-coffee-api \
 	uv run -m backend.coffee.a2a
 
 .PHONY: delivery-agent
 delivery-agent: ## 调试 - 启动 Delivery Agent
-	DELIVERY_TOOLSET_NAME=delivery-api \
 	uv run -m backend.delivery.a2a
 
 .PHONY: coffee-api

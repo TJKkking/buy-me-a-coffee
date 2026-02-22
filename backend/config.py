@@ -29,16 +29,25 @@ def get_env_with_default(default_value: str, *env_names: str) -> str:
     return default_value
 
 
-# AgentRun 集成能力
-COFFEE_TOOLSET_NAME = get_env_with_default("", "COFFEE_TOOLSET_NAME")
-DELIVERY_TOOLSET_NAME = get_env_with_default("", "DELIVERY_TOOLSET_NAME")
-from agentrun.integration.google_adk import model, toolset
+# LLM 模型配置（本地开发使用 LiteLLM + DashScope）
+from google.adk.models.lite_llm import LiteLlm
 
-MODEL_NAME = get_env_with_default("", "MODEL_NAME")
-AGENTRUN_MODEL_NAME = get_env_with_default("", "AGENTRUN_MODEL_NAME")
-DEFAULT_LLM = model(AGENTRUN_MODEL_NAME, model=MODEL_NAME)
-COFFEE_TOOLSET = toolset(COFFEE_TOOLSET_NAME) if COFFEE_TOOLSET_NAME else []
-DEVELIVERY_TOOLSET = toolset(DELIVERY_TOOLSET_NAME) if DELIVERY_TOOLSET_NAME else []
+MODEL_NAME = get_env_with_default("qwen3-max", "MODEL_NAME", "GOOGLE_MODEL")
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+
+if DASHSCOPE_API_KEY:
+    DEFAULT_LLM = LiteLlm(
+        model=f"openai/{MODEL_NAME}",
+        api_key=DASHSCOPE_API_KEY,
+        api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
+elif GOOGLE_API_KEY:
+    DEFAULT_LLM = MODEL_NAME
+else:
+    raise RuntimeError(
+        "未配置模型凭证，请在 .env 中设置 DASHSCOPE_API_KEY 或 GOOGLE_API_KEY"
+    )
 
 # 项目根目录
 BASE_DIR = Path(__file__).parent.parent
