@@ -346,3 +346,56 @@ agent = Agent(
 ---
 
 *本文档由 AI 生成，旨在帮助大语言模型理解项目结构和实现逻辑。*
+
+## Cursor Cloud specific instructions
+
+### 环境要求
+
+- Python 3.12, Node.js 22+
+- `uv` 用于 Python 依赖管理（通过 `pip install uv` 安装到 `~/.local/bin`）
+- 需要将 `$HOME/.local/bin` 加入 `PATH` 才能使用 `uv` 命令
+
+### 必需的环境变量（Secrets）
+
+- `DASHSCOPE_API_KEY`：通义千问 API 密钥（必需，用于 LLM 调用）
+- `MODEL_NAME`：模型名称（可选，默认 `qwen3-max`）
+
+### 启动服务（统一部署模式）
+
+按以下顺序启动 4 个服务（Coffee/Delivery API 可并行启动，Gateway 需在它们之后）：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+
+# 1. Coffee API (port 8001)
+cd /workspace/backend && uv run python -m coffee.main &
+
+# 2. Delivery API (port 8002)
+cd /workspace/backend && uv run python -m delivery.main &
+
+# 3. 等待 API 服务就绪
+sleep 3
+
+# 4. Gateway (port 8000)
+cd /workspace/backend && uv run python -m gateway.main &
+
+# 5. Frontend (port 5173)
+cd /workspace/frontend && npm run dev &
+```
+
+或使用 `make dev`（但需要 `uv` 在 PATH 中）。
+
+### 已知问题
+
+- `npm run build`（前端）因缺少 `vite-env.d.ts` 类型定义文件导致 `tsc` 报错 `import.meta.env`，这是仓库预存在的问题。Vite 开发服务器不受影响。
+- 没有配置 ESLint，因此无前端 lint 命令可运行。
+- API 端点需要 `X-Store-Id` 头（如 `store_001`），直接 curl 需手动加 header。
+
+### 验证服务就绪
+
+```bash
+curl -s http://localhost:8001/health  # Coffee API
+curl -s http://localhost:8002/health  # Delivery API
+curl -s http://localhost:8000/health  # Gateway
+curl -s http://localhost:5173         # Frontend
+```
