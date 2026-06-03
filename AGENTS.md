@@ -345,4 +345,72 @@ agent = Agent(
 
 ---
 
+## Cursor Cloud specific instructions
+
+本仓库**没有** `backend/main.py` 统一部署入口；本地开发需按 `Makefile` 启动 **5 个 Python 进程 + 前端**（见下方命令）。`AGENTS.md` 前文中的 `python main.py` / `DEPLOY_MODE=unified` 描述已过时。
+
+### 依赖刷新（VM 启动 update script 已覆盖）
+
+- Python：`uv venv` + `uv pip install -r backend/requirements.txt`（工作目录为仓库根目录）
+- 前端：`cd frontend && npm install`
+- 确保 `~/.local/bin` 在 `PATH` 中（`uv` 安装路径）
+
+### 必需环境变量（启动任意 `backend.*` 模块前）
+
+`backend/config.py` 在导入时会通过 AgentRun SDK 解析模型，**需要阿里云凭证**，否则 `coffee` / `delivery` 等包在 `__init__.py` 中拉取 agent 时会失败：
+
+| 变量 | 用途 |
+|------|------|
+| `ALIBABA_CLOUD_ACCESS_KEY_ID` | AgentRun / 阿里云 API |
+| `ALIBABA_CLOUD_ACCESS_KEY_SECRET` | 同上 |
+| `AGENTRUN_MODEL_NAME` | AgentRun 控制台中的模型服务名 |
+| `MODEL_NAME` | 具体模型 ID（如 `qwen3-max`） |
+
+网关还需（与 `make gateway-agent` 一致）：
+
+- `A2A_URLS=http://localhost:8003,http://localhost:8004`
+- `COFFEE_API_URL=http://localhost:8001`
+- `DELIVERY_API_URL=http://localhost:8002`
+
+本地 **不要** 设置 `COFFEE_TOOLSET_NAME` / `DELIVERY_TOOLSET_NAME`（Makefile 里 agent 目标带的 toolset 名面向生产 OpenAPI；本地用 Python tools）。
+
+可选：`DISABLE_BREAKING_CHANGES_WARNING=1` 关闭 agentrun-sdk 版本警告。
+
+### 启动顺序（各开一个 tmux 会话，均在仓库根目录）
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+# 1–2：REST API
+uv run -m backend.coffee.main      # :8001
+uv run -m backend.delivery.main    # :8002
+# 3–4：A2A Agent（本地勿带 COFFEE_TOOLSET_NAME / DELIVERY_TOOLSET_NAME）
+uv run -m backend.coffee.a2a       # :8003
+uv run -m backend.delivery.a2a     # :8004
+# 5：网关
+A2A_URLS=http://localhost:8003,http://localhost:8004 \
+COFFEE_API_URL=http://localhost:8001 \
+DELIVERY_API_URL=http://localhost:8002 \
+uv run -m backend.gateway.main     # :8000
+```
+
+或使用 `make coffee-api`、`make delivery-api`、`make coffee-agent`、`make delivery-agent`、`make gateway-agent`（注意修正 `make setup` 中 `setup-nodejs` 目标：应使用 `cd frontend && npm install`）。
+
+### 前端
+
+- **Vite 开发**：`cd frontend && npm run dev`（`:5173`，代理 `/api` → `:8000`）。`frontend/src/utils/config.ts` 中 `ENDPOINT` 默认为 FC 占位符；本地开发应设为 `''`（相对路径）才能走 Vite 代理，否则请用 **`make web`**（`:9000`，`ENDPOINT=http://localhost:8000`）。
+- **构建**：`cd frontend && npm run build`（`tsc && vite build`）。
+
+###  Lint / 测试
+
+- 仓库内**无** pytest / ESLint 脚本；前端以 `npm run build` 作为类型检查 + 生产构建验证。
+- 后端无独立 lint 配置；可用 `python -m compileall backend` 作语法烟雾测试（仍会因导入 `config` 需要凭证而无法覆盖全部模块）。
+
+### 烟雾检查
+
+- `curl http://localhost:8001/api/coffee/products`（需 coffee-api 已启动）
+- `curl http://localhost:8000/health`（需 gateway）
+- `curl http://localhost:8003/.well-known/agent-card.json`
+
+---
+
 *本文档由 AI 生成，旨在帮助大语言模型理解项目结构和实现逻辑。*
